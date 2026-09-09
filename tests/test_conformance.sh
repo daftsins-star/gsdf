@@ -96,6 +96,16 @@ cd "$BOMB/b"; TB=$(( $("$ROOT/bin/gsdf" context 1 | wc -w | tr -d ' ') * 13 / 10
 lt "gsdf context with a 145-line CONTEXT.md" "$TB" 2500
 has "truncation is announced" "$("$ROOT/bin/gsdf" context 1)" "truncated at 120 lines"
 cd "$ROOT"; rm -rf "$BOMB"
+# write commands are on the budget too: iter log now takes a git snapshot on every call
+LATD="$(mktemp -d)"; cp -R tests/fixtures/native-iterate "$LATD/w"; cd "$LATD/w"
+git init -q . && git config user.email t@t && git config user.name t && git add -A && git commit -qm b
+SW=$(python3 -c "
+import subprocess,time
+t=time.time()
+for i in range(10): subprocess.run(['$ROOT/bin/gsdf','iter','log','1','change %d'%i],capture_output=True)
+print(int((time.time()-t)*100))")
+lt "gsdf iter log ms/call (incl. snapshot)" "$SW" 100
+cd "$ROOT"; rm -rf "$LATD"
 cd "$ROOT"
 
 echo
