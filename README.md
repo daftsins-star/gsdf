@@ -91,6 +91,12 @@ without `<fails_when>`, plans using `wave:` instead of `depends_on:`, gsd-core's
 `continue-here.md`, the original's `codebase/` scan — all read, none rewritten. When GSDF updates
 a file it writes back in whatever format that file already uses.
 
+Handoffs cross tools in both directions. `/gsdf:pause` writes the same `continue-here.md` both
+upstreams use — `<phase dir>/.continue-here.md`, or `.planning/continue-here.md` when no phase is
+open — so a session paused by GSDF resumes under `/gsd:resume-work`, and one paused by either
+upstream resumes under `/gsdf:resume`. `gsdf context N` feeds whichever exists to the next
+planner, and `/gsdf:resume` deletes it once restored so it can't go stale in someone's context.
+
 So a phase gsd-core executed but never UAT'd lands you in iterate mode, ready to review. A phase
 the original GSD verified is simply behind you. Both are the right answer.
 
@@ -119,10 +125,10 @@ figure taken from the same real project (a JUCE gain plugin scaffolded by `/gsdf
 
 | | get-shit-done | gsd-core | GSDF |
 |---|---|---|---|
-| Commands | 29 | 72 | **9** |
+| Commands | 29 | 72 | **11** |
 | Agents | 12 | 64 | **2** |
-| Lines of command + agent markdown | 16,423 | 26,785 | **728** |
-| Description text loaded every turn | 1,880 chars | 5,349 chars | **405 chars** |
+| Lines of command + agent markdown | 16,423 | 26,785 | **978** |
+| Description text loaded every turn | 1,880 chars | 5,349 chars | **498 chars** |
 | Context handed to the planner | ~3,572 tokens<sup>†</sup> | ~3,572 tokens<sup>†</sup> | **978 tokens** |
 | Subagents per 2-plan phase | 6–8 | 6–10 | **3** |
 | Subagents during review/iteration | 1+ per fix | 1+ per fix | **0** |
@@ -164,8 +170,8 @@ Measured on the test fixtures:
 |---|---|
 | `gsdf context N` | **26 ms**, ~**560 tokens** (budget: 100 ms, 2,500 tokens) |
 | Subagents per 2-plan phase | **3** — one planner, two executors. Iterate and approve add none. |
-| Command descriptions, all 9 | **405 characters** total (loaded every turn; budget 550) |
-| `gsdf-executor.md` / `gsdf-planner.md` | **50** / **102** lines |
+| Command descriptions, all 11 | **498 characters** total (loaded every turn; budget 550) |
+| `gsdf-executor.md` / `gsdf-planner.md` | **59** / **102** lines |
 
 **The end-to-end wall-clock comparison has not been run.** It needs a real interactive session —
 `/gsdf:new-project` through `approved` on a scratch project — which can't be produced from a
@@ -174,7 +180,8 @@ procedure is written out in `GSDF-SPEC.md` §12; run it and the numbers go here.
 
 ## What has actually been run
 
-Every command has been executed for real against live projects, not just unit-tested:
+Every command except the two newest has been executed for real against live projects, not just
+unit-tested:
 
 | Path | Evidence |
 |---|---|
@@ -205,6 +212,8 @@ could not parse, and parallel `gsdf` writes silently losing updates.
   `~/.claude/commands/gsdf/` beats a fresh project copy. `install.sh` warns when it sees this.
 - **Permissions need a trusted workspace.** Claude Code ignores `permissions.allow` until you
   open the project interactively once and accept the trust dialog.
+- **`/gsdf:pause` and `/gsdf:resume` have not been run live yet.** They are the two newest
+  commands, covered by the conformance suite but not by the live runs above.
 - **The plan re-spawn has never fired.** `gsdf lint` and `gsdf conflicts` are proven to *detect*
   every failure they check for, but no planner output has actually failed one, so the branch that
   re-spawns the planner with the failure text is unexercised.
@@ -216,7 +225,7 @@ could not parse, and parallel `gsdf` writes silently losing updates.
 
 ```bash
 bash tests/test_cli.sh          # 106 checks — CLI behaviour against 7 fixture projects
-bash tests/test_conformance.sh  # 99 checks — spawn, size and token budgets; the git protocol
+bash tests/test_conformance.sh  # 105 checks — spawn, size and token budgets; the git protocol
 ```
 
 `tests/fixtures/` holds two `.planning/` trees built by hand from the real templates of both

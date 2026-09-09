@@ -72,13 +72,13 @@ Watch the budgets — `test_conformance.sh` enforces them and will fail the task
 | `gsdf-executor.md` | 60 lines |
 | `gsdf-planner.md` | 120 lines |
 | any command | 120 lines |
-| all 9 descriptions | 550 characters total |
+| all 11 descriptions | 550 characters total |
 | `gsdf context N` | 2,500 tokens |
 | any `gsdf` call | 100 ms |
 
 The description budget is the one that bites: it is loaded on every turn of every session, so
-adding a clause to a `description:` line costs you forever. Nine descriptions currently total
-405 characters.
+adding a clause to a `description:` line costs you forever. Eleven descriptions currently total
+498 characters — 52 left before the budget bites.
 
 ## Testing a change end to end
 
