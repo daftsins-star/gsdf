@@ -153,6 +153,20 @@ sandbox core-midphase
 has "advance flips Status: pending" "$(sed -n '/### Phase 2:/,/### Phase 3:/p' .planning/ROADMAP.md)" "**Status**: complete"
 is "advance moves next (core)" "$("$GSDF" next)" "plan 03"
 
+echo "== 8b. approve's real call sequence must not overshoot =="
+sandbox native-iterate
+# exactly what /gsdf:approve does: stamp the phase approved, THEN advance
+"$GSDF" iter approve 1 >/dev/null
+"$GSDF" phase advance 1 >/dev/null
+is "advance stops at the phase it was given" "$("$GSDF" next)" "plan 02"
+is "the next phase was NOT stamped complete" "$(ls .planning/phases/02-*/02-ITERATIONS.md 2>/dev/null | wc -l | tr -d ' ')" "0"
+has "phase 01 is complete" "$("$GSDF" phase list)" "| 01 | drive | complete |"
+has "phase 02 still needs planning" "$("$GSDF" phase list)" "| 02 | ui | plan |"
+# and without an argument it still advances the current phase
+sandbox native-iterate
+"$GSDF" phase advance >/dev/null
+is "bare advance still works" "$("$GSDF" next)" "plan 02"
+
 echo "== 9. phase dir creates from ROADMAP slug =="
 sandbox native-plan
 D="$("$GSDF" phase dir 2)"

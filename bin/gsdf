@@ -358,8 +358,11 @@ def cmd_list(pl):
         pls = plans_of(p["dir"], p["prefix"])
         print("| %s | %s | %s | %d | %d | %d |" % (p["prefix"], p["slug"], p["status"], len(pls),
               sum(1 for x in pls if x["has_summary"]), len(iter_lines(p)) if p["dir"] else 0))
-def cmd_advance(pl):
-    p = current(pl) or die("every phase is already complete")
+def cmd_advance(pl, p=None):
+    """Advance an EXPLICIT phase. Defaulting to current() is a trap: approve stamps the
+    phase's ITERATIONS approved first, so by the time advance runs, current() has already
+    moved on and advance would mark the NEXT, unstarted phase complete."""
+    p = p or current(pl) or die("every phase is already complete")
     if not p["dir"]:
         p["dir"] = pl / "phases" / ("%s-%s" % (p["prefix"], p["slug"])); p["dir"].mkdir(parents=True, exist_ok=True)
     iter_approve(p)
@@ -371,7 +374,7 @@ def cmd_advance(pl):
         nb = nb.replace("⏳", "✅"); t = t[:blk.start()] + nb + t[blk.end():]
     if t == orig: t = t.rstrip("\n") + "\n\n<!-- gsdf: phase %s complete -->\n" % p["prefix"]
     (pl / "ROADMAP.md").write_text(t, encoding="utf-8")
-    nxt = current(pl)
+    nxt = next((x for x in phases(pl) if key(x["num"]) > key(p["num"]) and x["status"] != "complete"), None) or current(pl)
     state_set(pl, "phase", nxt["prefix"] if nxt else p["prefix"])
     print("Phase %s complete. Next: %s" % (p["prefix"], (nxt["prefix"] + " " + nxt["slug"]) if nxt else "milestone-done"))
 def cmd_quick_new(pl, s):
@@ -400,7 +403,8 @@ def main(a):
     if c == "phase":
         s = a[1] if len(a) > 1 else "current"
         if s == "list": return cmd_list(pl)
-        if s == "advance": return cmd_advance(pl)
+        if s == "advance":
+            return cmd_advance(pl, find(pl, a[2]) if len(a) > 2 else None)
         p = find(pl, a[2] if len(a) > 2 else None)
         if s == "current": return print("%s %s %s" % (p["prefix"], p["slug"], p["status"]))
         if s == "dir":

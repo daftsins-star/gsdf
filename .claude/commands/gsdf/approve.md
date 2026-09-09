@@ -59,8 +59,9 @@ GSD summaries don't), add it at the end.
 **5. Advance.**
 
 ```bash
-.claude/bin/gsdf iter approve N     # stamps NN-ITERATIONS.md status: approved
-.claude/bin/gsdf phase advance      # flips the ROADMAP marker in whatever format it finds
+.claude/bin/gsdf phase advance N    # stamps NN approved and flips its ROADMAP marker
+                                    # ALWAYS pass N — without it, advance acts on whatever
+                                    # phase is current, which is no longer this one
 .claude/bin/gsdf state set status idle
 .claude/bin/gsdf state position "Phase NN approved, <k> iterations. Next: phase <NN+1>."
 ```

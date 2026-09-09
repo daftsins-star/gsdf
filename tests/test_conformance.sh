@@ -96,6 +96,10 @@ has "gsdf reports its version and path" "$(bin/gsdf --version)" "gsdf 1."
 has "CLAUDE block prefers PATH over a project-local copy" "$(cat .claude/CLAUDE.gsdf.md)" "Prefer PATH"
 has "install.sh refreshes a stale project CLI" "$(cat install.sh)" "refreshed a stale project-local CLI"
 
+echo "== approve passes an explicit phase to advance =="
+has "approve calls phase advance N" "$(cat $C/approve.md)" "phase advance N"
+is "approve no longer double-stamps via iter approve" "$(grep -c 'iter approve' $C/approve.md)" "0"
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 
