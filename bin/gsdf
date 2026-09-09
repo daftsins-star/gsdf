@@ -178,9 +178,14 @@ def state_position(pl, text):
     write_state(pl, re.sub(r"\n{3,}", "\n\n", t))
 
 # ---------- context ----------
-def config(pl):
-    try: return json.loads(read(pl / "config.json") or "{}")
-    except json.JSONDecodeError: return {}
+def config(pl, strict=False):
+    raw = read(pl / "config.json")
+    try: return json.loads(raw or "{}")
+    except json.JSONDecodeError as e:
+        # Readers carry on with defaults; a writer must never overwrite a file it cannot parse.
+        if strict: die("config.json is not valid JSON (%s) — fix it before adopting; "
+                       "refusing to overwrite it and lose the keys it holds" % e)
+        return {}
 def roadmap_entry(pl, p):
     t = read(pl / "ROADMAP.md")
     m = re.search(r"^#{2,4}[ \t]*\*{0,2}Phase[ \t]+%s\b.*$" % re.escape(p["num"]), t, re.M)
@@ -353,7 +358,7 @@ def merge(dst, src):
         elif k not in dst or dst.get(k) in ("", None): dst[k] = v
     return dst
 def cmd_adopt(pl):
-    (pl / "config.json").write_text(json.dumps(merge(config(pl), detect(pl.parent)), indent=2) + "\n", encoding="utf-8")
+    (pl / "config.json").write_text(json.dumps(merge(config(pl, strict=True), detect(pl.parent)), indent=2) + "\n", encoding="utf-8")
     print("Adopted %s" % pl); cmd_list(pl); print(); cmd_next(pl)
 def cmd_init(name):
     root = Path.cwd(); pl = root / ".planning"

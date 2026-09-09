@@ -94,7 +94,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~440 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~470 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out.
 
 ```bash
@@ -212,8 +212,8 @@ committing before it had finished writing its own state.
 ## Tests
 
 ```bash
-bash tests/test_cli.sh          # 76 checks — CLI behaviour against 7 fixture projects
-bash tests/test_conformance.sh  # 76 checks — spawn, size and token budgets; the git protocol
+bash tests/test_cli.sh          # 102 checks — CLI behaviour against 7 fixture projects
+bash tests/test_conformance.sh  # 90 checks — spawn, size and token budgets; the git protocol
 ```
 
 `tests/fixtures/` holds two `.planning/` trees built by hand from the real templates of both

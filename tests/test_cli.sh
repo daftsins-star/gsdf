@@ -84,6 +84,21 @@ sandbox original-midphase; git init -q . && git add -A && git commit -qm base
 is "adopt writes only config.json" "$(git status --porcelain)" " M .planning/config.json"
 has "adopt detected nothing to invent" "$(cat .planning/config.json)" '"commit_docs": true'
 
+echo "== 4b. adopt never destroys a config it cannot parse =="
+sandbox original-midphase
+printf '{ "model_profile": "quality", broken' > .planning/config.json
+"$GSDF" adopt >/dev/null 2>&1; is "adopt refuses invalid config.json" "$?" "1"
+has "and says why" "$("$GSDF" adopt 2>&1)" "refusing to overwrite it"
+is "the file is untouched" "$(cat .planning/config.json)" '{ "model_profile": "quality", broken'
+is "reads still tolerate it" "$("$GSDF" next)" "execute 02"
+# malformed trees must never crash, only exit 0 or 1
+sandbox original-midphase
+printf -- '---\ndepends_on: [not-closed\nestimated_tokens: abc\n---\n' > .planning/phases/02-gain-stage/02-03-PLAN.md
+for sub in "plans 2" "waves 2" "conflicts 2" "context 2" "tryit 2" "phase list" "next"; do
+  "$GSDF" $sub >/dev/null 2>&1; rc=$?
+  [ $rc -le 1 ] && ok "malformed plan: gsdf $sub exits $rc" || bad "gsdf $sub" "crashed rc=$rc"
+done
+
 echo "== 5. waves =="
 cd "$FIX/native-execute";  is "waves: depends_on topo" "$("$GSDF" waves 01)" '[["01"], ["02"]]'
 sandbox native-execute

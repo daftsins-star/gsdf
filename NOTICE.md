@@ -1,7 +1,7 @@
 # NOTICE
 
-GSDF was conceived and specified by Daftsins (https://github.com/daftsins-star); the
-implementation was written by Claude against that specification. Copyright (c) 2026 Daftsins, MIT.
+GSDF was conceived and designed by Daftsins (https://github.com/daftsins-star).
+Copyright (c) 2026 Daftsins. MIT.
 
 GSDF is an independent workflow. It vendors no code from either project below, but it is
 directly descended from both and borrows their wording, their artifact formats, and several
