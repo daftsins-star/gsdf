@@ -9,6 +9,16 @@ GLOBAL=0
 TARGET="$(cd "${1:-.}" && pwd)"
 if [ "$GLOBAL" = 1 ]; then DEST="$HOME/.claude"; else DEST="$TARGET/.claude"; fi
 
+# A user-level command shadows a project-level one of the same name, so a stale global
+# install would silently win over this one.
+if [ "$GLOBAL" = 0 ] && [ -d "$HOME/.claude/commands/gsdf" ]; then
+  echo "WARNING: GSDF is already installed globally in ~/.claude/."
+  echo "         User-level commands shadow project-level ones, so /gsdf:* will run the"
+  echo "         GLOBAL copy, not this one. Re-run './install.sh --global' to update that"
+  echo "         instead, or remove ~/.claude/commands/gsdf to use per-project installs."
+  echo
+fi
+
 echo "Installing GSDF → $DEST"
 mkdir -p "$DEST/commands/gsdf" "$DEST/agents" "$DEST/skills" "$DEST/bin"
 cp "$SRC"/.claude/commands/gsdf/*.md "$DEST/commands/gsdf/"
@@ -23,6 +33,7 @@ chmod +x "$DEST/bin/gsdf"
 if [ "$GLOBAL" = 1 ]; then
   for f in "$DEST/commands/gsdf"/*.md "$DEST/agents"/gsdf-*.md; do
     perl -pi -e 's{`\.claude/bin/gsdf` \(or `gsdf` on PATH if that file is absent\)}{`gsdf` (on PATH)}g;
+                 s{`\.claude/bin/gsdf` \(or `gsdf` on PATH\)}{`gsdf` (on PATH)}g;
                  s{\.claude/bin/gsdf}{gsdf}g' "$f"
   done
   echo "  commands rewritten to call gsdf on PATH"
@@ -89,4 +100,7 @@ else
   echo "Installed into $TARGET."
 fi
 echo "Restart Claude Code, then run /gsdf:help."
-echo "Recommended: claude --dangerously-skip-permissions"
+echo
+echo "NOTE: Claude Code ignores permissions.allow in an untrusted workspace. The first time"
+echo "      you open this project interactively, accept the trust dialog — otherwise every"
+echo "      gsdf call prompts. Or run: claude --dangerously-skip-permissions"

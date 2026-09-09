@@ -77,6 +77,14 @@ is "same wave now" "$("$GSDF" waves 1)" '[["01", "02"]]'
 "$GSDF" conflicts 1 >/dev/null 2>&1; is "conflict exits non-zero" "$?" "1"
 has "conflict names the file" "$("$GSDF" conflicts 1)" "both write Source/ParamIDs.h"
 
+echo "== 5c. requirements are extracted as blocks, not lines =="
+cd "$FIX/native-execute"
+CTX="$("$GSDF" context 1)"
+has "wrapped requirement keeps its continuation" "$CTX" "automatable parameter and displayed as a whole percentage"
+has "second requirement complete too" "$CTX" "keeps its alias floor below -80 dBFS"
+hasnt "out-of-scope bullet mentioning a REQ id is excluded" "$CTX" "not a loudness normaliser"
+hasnt "unrelated requirement excluded" "$CTX" "REQ-04"
+
 echo "== 6. state read/write tolerance =="
 sandbox original-midphase
 has "state prints old Current Position" "$("$GSDF" state)" "Phase: 2 of 4 (Gain stage)"
