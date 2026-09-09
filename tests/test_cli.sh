@@ -182,6 +182,16 @@ sandbox native-iterate
 "$GSDF" phase advance >/dev/null
 is "bare advance still works" "$("$GSDF" next)" "plan 02"
 
+echo "== 8c. a closed milestone routes to new-project, not to re-planning =="
+sandbox native-milestone-done
+is "all phases complete" "$("$GSDF" next)" "milestone-done"
+mkdir -p .planning/milestones/v1.0
+mv .planning/phases/* .planning/milestones/v1.0/
+is "phases archived, roadmap left behind -> stale re-plan" "$("$GSDF" next)" "plan 01"
+mv .planning/ROADMAP.md .planning/milestones/v1.0/ROADMAP.md
+is "roadmap archived too -> new-project" "$("$GSDF" next)" "new-project"
+is "nothing was lost" "$(ls .planning/milestones/v1.0/ | wc -l | tr -d ' ')" "3"
+
 echo "== 9. phase dir creates from ROADMAP slug =="
 sandbox native-plan
 D="$("$GSDF" phase dir 2)"

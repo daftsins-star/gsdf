@@ -41,8 +41,17 @@ reading those files directly is how a session's context gets eaten before any wo
 For `milestone-done`, close it out inline — **this command spawns nothing**:
 1. Ask (one `AskUserQuestion`) whether to close the milestone now.
 2. `git tag` the milestone name from STATE.md frontmatter, if the tree is clean.
-3. `mkdir -p .planning/milestones/<milestone>` and `git mv .planning/phases/* .planning/milestones/<milestone>/`.
+3. `mkdir -p .planning/milestones/<milestone>`, then **`git mv` both the phases and the
+   roadmap** into it:
+
+   ```bash
+   git mv .planning/phases/* .planning/milestones/<milestone>/
+   git mv .planning/ROADMAP.md .planning/milestones/<milestone>/ROADMAP.md
+   ```
+
    Move, never delete. Everything under `.planning/` that GSDF didn't create stays where it is.
+   The ROADMAP goes too because it *describes* the milestone being closed — leaving it behind
+   makes `gsdf next` report `plan 01` and send the next session to re-plan a phase that shipped.
 4. Ask what the next milestone is for (goal, must-haves, out-of-scope — at most 4 questions),
    append the answers to PROJECT.md, then
    `gsdf state set milestone <next>` and `gsdf state set phase 01`.

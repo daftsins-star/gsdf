@@ -136,6 +136,10 @@ PY
 is "commit step comes after fold and advance" "$R" "yes"
 has "approve requires a clean tree afterwards" "$(cat $C/approve.md)" "must leave the tree clean"
 
+echo "== closing a milestone archives its roadmap too =="
+has "progress moves ROADMAP into the archive" "$(cat $C/progress.md)" "git mv .planning/ROADMAP.md"
+has "progress explains why" "$(cat $C/progress.md)" "re-plan a phase that shipped"
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 
