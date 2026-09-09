@@ -1,7 +1,7 @@
 ---
 description: One-off task outside the current phase
 argument-hint: "\"<task>\" [--plan-first]"
-allowed-tools: [Bash, Read, Write, Edit, Glob, Grep, Task]
+allowed-tools: [Bash, Read, Write, Edit, Glob, Grep, Task, Agent]
 ---
 
 CLI: `.claude/bin/gsdf` (or `gsdf` on PATH if that file is absent). Task: `$ARGUMENTS`

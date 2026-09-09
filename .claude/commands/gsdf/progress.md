@@ -2,7 +2,7 @@
 description: Where the project is, and run the next step
 argument-hint: "[--next]"
 effort: low
-allowed-tools: [Bash, Read, Write, Edit, Glob, Grep, Task, AskUserQuestion]
+allowed-tools: [Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion]
 ---
 
 CLI: `.claude/bin/gsdf` (or `gsdf` on PATH if that file is absent). Arguments: `$ARGUMENTS`

@@ -15,8 +15,16 @@ documents to transform: do what the tasks say.
    - Implement `<action>` exactly. It names what to do *and what not to do* — both are binding.
    - Run `<verify>`. Judge the output against `<fails_when>`. No `<fails_when>` (older plans):
      failure is a non-zero exit code.
-   - On pass: `git add` **only the files in `<files>`** (plus any you list under Deviations), then
-     `git commit -m "<type>(NN-MM): <task name>"` — type is feat/fix/test/refactor/docs/chore.
+   - On pass, commit **only this task's files** (type: feat/fix/test/refactor/docs/chore):
+     ```bash
+     git add -N <files>                    # intent-to-add, so new files are known to git
+     git commit --only <files> -m "<type>(NN-MM): <task name>"
+     ```
+     Never `git add -A`, never a bare `git commit`. Executors in your wave share one git index
+     and commit concurrently; `--only` commits exactly these paths through a temporary index, so
+     a peer's staged work cannot leak into your commit. On `index.lock: File exists` or
+     `cannot lock ref 'HEAD'`, a peer is mid-commit — wait a second and retry, up to 10 times.
+     That is contention, not a failed task.
    - On fail: fix and retry, at most twice. Still failing → write SUMMARY.md with
      `status: blocked`, say which task and what the verify output was, and stop. Do not carry on.
 3. Check every `## Must-haves` box against reality, not against your intentions.
@@ -24,7 +32,8 @@ documents to transform: do what the tasks say.
    `## Try it` section is copied from the plan **and corrected to what actually exists** — real
    paths, real commands, real ports. A wrong Try-it is worse than none; the user runs it verbatim.
    Fill `## Needs human check` with what no command can settle: how it looks, feels, sounds.
-   Commit as `docs(NN-MM): complete plan`.
+   Commit it the same way: `git add -N <summary>` then
+   `git commit --only <summary> -m "docs(NN-MM): complete plan"`.
 5. Return **only** the `## Delivered` block. Nothing else — no preamble, no file listing.
 
 ## Deviations — you WILL find work the plan didn't anticipate. This is normal.

@@ -8,6 +8,7 @@ ok(){ PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad(){ FAIL=$((FAIL+1)); printf '  FAIL %s\n       %s\n' "$1" "$2"; }
 is(){ [ "$2" = "$3" ] && ok "$1 ($2)" || bad "$1" "want $3, got $2"; }
 lt(){ [ "$2" -lt "$3" ] && ok "$1 ($2 < $3)" || bad "$1" "want < $3, got $2"; }
+has(){ case "$2" in *"$3"*) ok "$1";; *) bad "$1" "expected to contain: $3";; esac; }
 
 echo "== spawn budget: only new-project, plan, execute, quick may spawn =="
 SPAWNERS="$(grep -liE 'spawn[^.]{0,40}(gsdf-planner|gsdf-executor)' $C/*.md | xargs -n1 basename | sort | tr '\n' ' ')"
@@ -52,6 +53,12 @@ GOOD=$(grep -rocE 'NN-MM-(PLAN|SUMMARY)\.md|NN-(CONTEXT|ITERATIONS)\.md' $C $A .
 [ "$GOOD" -ge 5 ] && ok "prefixed names are used throughout ($GOOD files)" || bad "prefixed names" "only $GOOD files"
 is "templates document prefixed names" "$(grep -c 'NN-MM-PLAN.md' .claude/skills/gsdf-templates/SKILL.md)" "1"
 
+echo "== parallel executors must not share a git index =="
+is "executor commits with --only" "$(grep -c 'git commit --only' $A/gsdf-executor.md)" "2"
+is "executor never uses git add -A" "$(grep -cE '^\s*git add -A' $A/gsdf-executor.md)" "0"
+is "executor uses intent-to-add" "$(grep -c 'git add -N' $A/gsdf-executor.md)" "2"
+is "executor retries on index.lock" "$(grep -ci 'index.lock' $A/gsdf-executor.md)" "1"
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 
@@ -65,6 +72,19 @@ print(int((time.time()-t)*1000/20))")
 lt "gsdf context ms/call" "$S" 100
 T=$(( $("$ROOT/bin/gsdf" context 02 | wc -w | tr -d ' ') * 13 / 10 ))
 lt "gsdf context est. tokens" "$T" 2500
+# a thorough discuss must not be able to blow the budget (CONTEXT.md is capped, not verbatim)
+cd "$ROOT"; BOMB="$(mktemp -d)"; cp -R tests/fixtures/native-execute "$BOMB/b"
+python3 -c "
+lines=['# Phase 1 Context: Drive','']
+for i in range(1,9):
+    lines += ['## Gray area %d' % i, '']
+    lines += ['- Decision %d.%d: a concrete value with a sentence of reasoning behind it.' % (i,j) for j in range(1,16)]
+    lines += ['']
+open('$BOMB/b/.planning/phases/01-drive/01-CONTEXT.md','w').write(chr(10).join(lines))"
+cd "$BOMB/b"; TB=$(( $("$ROOT/bin/gsdf" context 1 | wc -w | tr -d ' ') * 13 / 10 ))
+lt "gsdf context with a 145-line CONTEXT.md" "$TB" 2500
+has "truncation is announced" "$("$ROOT/bin/gsdf" context 1)" "truncated at 120 lines"
+cd "$ROOT"; rm -rf "$BOMB"
 cd "$ROOT"
 
 echo

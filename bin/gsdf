@@ -187,7 +187,11 @@ def cmd_context(pl, p):
     dec = section(read(state_file(pl)), "Decisions", "Decisions Made")
     if dec: out.append("## Decisions\n\n" + tail(dec, 20))
     ctx = p["dir"] and (p["dir"] / (p["prefix"] + "-CONTEXT.md"))
-    if ctx and ctx.exists(): out.append("## Context\n\n" + read(ctx).strip())
+    if ctx and ctx.exists():
+        body, full = read(ctx).strip(), read(ctx).strip().splitlines()
+        if len(full) > 120:  # a long discuss would blow the 2.5k budget; point at the file instead
+            body = "\n".join(full[:120]) + "\n\n[truncated at 120 lines — read %s in full if you need the rest]" % ctx
+        out.append("## Context\n\n" + body)
     ch = next((c for c in [pl / "continue-here.md", p["dir"] and p["dir"] / ".continue-here.md"] if c and c.exists()), None)
     if ch: out.append("## Handoff (continue-here.md)\n\n" + cap(read(ch).strip(), 40))
     if cfg.get("verify"): out.append("## Verify commands\n\n```json\n%s\n```" % json.dumps(cfg["verify"], indent=2))

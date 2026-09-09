@@ -18,6 +18,16 @@ cp -R "$SRC/.claude/skills/gsdf-templates" "$DEST/skills/"
 cp "$SRC/bin/gsdf" "$DEST/bin/gsdf"
 chmod +x "$DEST/bin/gsdf"
 
+# A global install has no project-relative .claude/bin/gsdf, so rewrite the CLI path in the
+# installed copies rather than relying on every agent noticing a fallback sentence.
+if [ "$GLOBAL" = 1 ]; then
+  for f in "$DEST/commands/gsdf"/*.md "$DEST/agents"/gsdf-*.md; do
+    perl -pi -e 's{`\.claude/bin/gsdf` \(or `gsdf` on PATH if that file is absent\)}{`gsdf` (on PATH)}g;
+                 s{\.claude/bin/gsdf}{gsdf}g' "$f"
+  done
+  echo "  commands rewritten to call gsdf on PATH"
+fi
+
 # --- CLI on PATH (global install only) ---
 ONPATH=""
 if [ "$GLOBAL" = 1 ]; then

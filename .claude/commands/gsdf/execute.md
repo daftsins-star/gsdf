@@ -1,7 +1,7 @@
 ---
 description: Run a phase's plans in waves, then enter iterate mode
 argument-hint: "[N] [--wave W]"
-allowed-tools: [Bash, Read, Write, Edit, Glob, Grep, Task, AskUserQuestion]
+allowed-tools: [Bash, Read, Write, Edit, Glob, Grep, Task, Agent, AskUserQuestion]
 ---
 
 CLI: `.claude/bin/gsdf` (or `gsdf` on PATH if that file is absent). Arguments: `$ARGUMENTS`

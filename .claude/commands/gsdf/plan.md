@@ -1,7 +1,7 @@
 ---
 description: Decompose a phase into executable plans
 argument-hint: "[N] [--auto] [--research|--skip-research]"
-allowed-tools: [Bash, Read, Write, Glob, Grep, Task, AskUserQuestion]
+allowed-tools: [Bash, Read, Write, Glob, Grep, Task, Agent, AskUserQuestion]
 ---
 
 CLI: `.claude/bin/gsdf` (or `gsdf` on PATH if that file is absent). Arguments: `$ARGUMENTS`
