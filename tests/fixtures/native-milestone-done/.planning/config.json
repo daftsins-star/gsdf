@@ -1,0 +1,13 @@
+{
+  "verify": {
+    "build": "cmake --build build --config Release",
+    "test": "ctest --test-dir build --output-on-failure",
+    "ui": "cd ui && npm test",
+    "ui_dev": "cd ui && npm run dev",
+    "plugin_validate": "pluginval --strictness-level 5 --validate build/Widget_artefacts/Release/VST3/Widget.vst3"
+  },
+  "ui_dir": "ui",
+  "standalone_target": "Widget_Standalone",
+  "phases_per_milestone": 4,
+  "research": "auto"
+}

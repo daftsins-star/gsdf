@@ -1,0 +1,5 @@
+{
+  "mode": "standard",
+  "git": { "auto_commit": true },
+  "workflow": { "plan_checker": true, "verifier": true }
+}

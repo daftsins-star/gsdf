@@ -1,0 +1,354 @@
+#!/usr/bin/env python3
+"""gsdf - deterministic state tool for GSDF. Filesystem is the source of truth (spec 4a)."""
+import json, os, re, shutil, sys
+from datetime import datetime, date
+from pathlib import Path
+
+def die(m): sys.stderr.write(m.rstrip() + "\n"); sys.exit(1)
+def read(p):
+    try: return Path(p).read_text(encoding="utf-8", errors="replace")
+    except OSError: return ""
+def slug(s): return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", s.lower())).strip("-") or "phase"
+def norm(n): return str(float(n)).rstrip("0").rstrip(".") if "." in str(n) else str(int(n))
+def key(n): return float(n)
+
+def planning():
+    d = Path.cwd().resolve()
+    for c in [d, *d.parents]:
+        if (c / ".planning").is_dir(): return c / ".planning"
+    return None
+def need(): return planning() or die("no .planning/ found — run `gsdf init <name>` or `/gsdf:new-project`")
+
+# ---------- parsing ----------
+def frontmatter(t):
+    if not t.startswith("---"): return {}
+    e = t.find("\n---", 3)
+    if e < 0: return {}
+    return {m[1]: m[2].strip() for m in (re.match(r"^([A-Za-z_][\w-]*):\s*(.*)$", l) for l in t[3:e].splitlines()) if m}
+def as_list(v):
+    v = (v or "").strip()
+    if v.startswith("[") and v.endswith("]"): v = v[1:-1]
+    return [x.strip().strip("\"'") for x in v.split(",") if x.strip()]
+def dep_id(d):
+    m = re.match(r"^\d+(?:\.\d+)?-(\d+)$", d.strip().strip("\"'"))
+    return m.group(1) if m else d.strip().strip("\"'")
+def section(t, *names):
+    for n in names:
+        m = re.search(r"^#{1,4}\s*%s\s*$(.*?)(?=^#{1,4}\s|\Z)" % n, t, re.M | re.S | re.I)
+        if m and m.group(1).strip(): return m.group(1).strip()
+    return ""
+def cap(t, n): return "\n".join(t.splitlines()[:n])
+def tail(t, n): return "\n".join(t.splitlines()[-n:])
+
+ROADMAP_RE = re.compile(r"^[ \t]*(?:[-*][ \t]*\[[ xX✅⏳]?\][ \t]*)?#{0,4}[ \t]*\*{0,2}Phase[ \t]+(\d+(?:\.\d+)?)[ \t]*[:–—-][ \t]*(.+)$", re.M)
+def roadmap_phases(pl):
+    out = {}
+    for m in ROADMAP_RE.finditer(read(pl / "ROADMAP.md")):
+        n = norm(m.group(1))
+        if n in out: continue
+        name = re.split(r"\s+[-–—]\s+", m.group(2).split("**")[0])[0].strip(" *:—-")
+        out[n] = name or ("phase-" + n)
+    return out
+
+PDIR_RE = re.compile(r"^(\d{2,3}(?:\.\d+)?)-(.+)$")
+def dir_phases(pl):
+    out = {}
+    for d in sorted((pl / "phases").glob("*")) if (pl / "phases").is_dir() else []:
+        m = PDIR_RE.match(d.name)
+        if d.is_dir() and m: out[norm(m.group(1))] = (m.group(1), m.group(2), d)
+    return out
+
+def plans_of(pdir, prefix):
+    out = []
+    if not pdir: return out
+    for f in sorted(pdir.glob(prefix + "-*-PLAN.md")):
+        m = re.match(r"^%s-(\d+)-PLAN\.md$" % re.escape(prefix), f.name)
+        if not m: continue
+        fm = frontmatter(read(f)); pid = m.group(1)
+        s = pdir / ("%s-%s-SUMMARY.md" % (prefix, pid))
+        out.append({"id": pid, "file": str(f), "depends_on": [dep_id(x) for x in as_list(fm.get("depends_on"))],
+                    "has_depends": "depends_on" in fm, "wave": fm.get("wave"), "has_summary": s.exists(),
+                    "status": (frontmatter(read(s)).get("status", "complete") if s.exists() else "pending")})
+    return out
+
+def uat_passed(t):
+    if re.search(r"^status:\s*(passed|pass|complete|approved)\s*$", t, re.M | re.I): return True
+    if re.search(r"^\s*\*{0,2}Status\*{0,2}:\s*PASS", t, re.M): return True
+    if re.search(r"^#{1,4}\s*Result:\s*pass", t, re.M | re.I): return True
+    r = re.findall(r"^\s*result:\s*(\S+)", t, re.M | re.I)
+    if r and all(x.lower() == "pass" for x in r): return True
+    b = re.findall(r"\[([ xX])\]", t)
+    return bool(b) and all(x.lower() == "x" for x in b)
+
+def status_of(pdir, prefix):
+    """Spec 4a: first match wins. Filesystem is truth; STATE.md and ROADMAP.md are never trusted."""
+    if not pdir or not pdir.is_dir(): return "plan"
+    f = lambda s: pdir / ("%s-%s.md" % (prefix, s))
+    if f("ITERATIONS").exists() and re.search(r"^status:\s*approved", read(f("ITERATIONS")), re.M): return "complete"
+    if f("UAT").exists() and uat_passed(read(f("UAT"))): return "complete"
+    if f("VERIFICATION").exists() and re.search(r"passed|PASS", read(f("VERIFICATION"))): return "complete"
+    pl = plans_of(pdir, prefix)
+    return ("iterate" if all(p["has_summary"] for p in pl) else "execute") if pl else "plan"
+
+def phases(pl):
+    rm, dp, out = roadmap_phases(pl), dir_phases(pl), []
+    for n in sorted(set(rm) | set(dp), key=key):
+        prefix, sl, d = dp[n] if n in dp else (n.zfill(2), slug(rm[n]), None)
+        out.append({"num": n, "prefix": prefix, "slug": sl, "dir": d, "name": rm.get(n, sl), "status": status_of(d, prefix)})
+    return out
+def current(pl): return next((p for p in phases(pl) if p["status"] != "complete"), None)
+def find(pl, arg):
+    ph = phases(pl)
+    if arg in (None, "", "current"):
+        return current(pl) or die("every phase is complete — run `gsdf next`")
+    n = norm(re.sub(r"[^\d.]", "", str(arg)) or die("bad phase: %s" % arg))
+    return next((p for p in ph if p["num"] == n), None) or die("phase %s not found" % arg)
+
+def waves(plans):
+    ids = [p["id"] for p in plans]
+    if not ids: return []
+    if all(p["has_depends"] for p in plans):
+        rem = {p["id"]: set(p["depends_on"]) & set(ids) for p in plans}
+        out = []
+        while rem:
+            layer = sorted([i for i, d in rem.items() if not d]) or sorted(rem)
+            out.append(layer)
+            for i in layer: rem.pop(i)
+            for d in rem.values(): d -= set(layer)
+        return out
+    if all(p["wave"] for p in plans):
+        g = {}
+        for p in plans: g.setdefault(int(re.sub(r"\D", "", p["wave"]) or 1), []).append(p["id"])
+        return [sorted(g[k]) for k in sorted(g)]
+    return [[i] for i in ids]
+
+# ---------- STATE.md ----------
+POS = r"(?:Current[ \t]+)?Position|Current[ \t]+Status"
+def head_span(t, pat):
+    m = re.search(r"^#{1,4}[ \t]*(?:%s)[ \t]*$" % pat, t, re.M | re.I)
+    if not m: return None
+    nxt = re.search(r"^#{1,4}[ \t]", t[m.end():], re.M)
+    return (m.start(), m.end(), m.end() + (nxt.start() if nxt else len(t) - m.end()))
+def state_file(pl): return pl / "STATE.md"
+def cmd_state(pl):
+    t = read(state_file(pl)) or die("STATE.md not found")
+    fm = t[:t.find("\n---", 3) + 4] if t.startswith("---") and t.find("\n---", 3) > 0 else ""
+    sp = head_span(t, POS)
+    print((fm + "\n" + (t[sp[0]:sp[2]] if sp else cap(t, 15))).strip())
+def write_state(pl, t): state_file(pl).write_text(t, encoding="utf-8")
+def state_set(pl, k, v):
+    t = read(state_file(pl)) or die("STATE.md not found")
+    if t.startswith("---") and t.find("\n---", 3) > 0:
+        e = t.find("\n---", 3)
+        head, body = t[3:e], t[e:]
+        if re.search(r"^%s:" % re.escape(k), head, re.M):
+            head = re.sub(r"^%s:.*$" % re.escape(k), "%s: %s" % (k, v), head, count=1, flags=re.M)
+        else: head = head.rstrip("\n") + "\n%s: %s\n" % (k, v)
+        t = "---" + head + body
+    else:
+        c = "<!-- gsdf: %s=%s -->" % (k, v)
+        t = re.sub(r"^<!-- gsdf: %s=.*-->$" % re.escape(k), c, t, count=1, flags=re.M) if re.search(
+            r"^<!-- gsdf: %s=" % re.escape(k), t, re.M) else re.sub(r"^(#[^\n]*\n)", r"\1\n" + c + "\n", t, count=1) or t + "\n" + c + "\n"
+    write_state(pl, t)
+def state_append(pl, pat, title, line):
+    t = read(state_file(pl)) or die("STATE.md not found")
+    sp = head_span(t, pat)
+    if sp: t = t[:sp[2]].rstrip("\n") + "\n" + line + "\n\n" + t[sp[2]:]
+    else: t = t.rstrip("\n") + "\n\n## %s\n\n%s\n" % (title, line)
+    write_state(pl, t)
+def state_position(pl, text):
+    t = read(state_file(pl)) or die("STATE.md not found")
+    sp = head_span(t, POS)
+    if sp: t = t[:sp[1]] + "\n\n" + text + "\n\n" + t[sp[2]:]
+    else: t = t.rstrip("\n") + "\n\n## Position\n\n" + text + "\n"
+    write_state(pl, re.sub(r"\n{3,}", "\n\n", t))
+
+# ---------- context ----------
+def config(pl):
+    try: return json.loads(read(pl / "config.json") or "{}")
+    except json.JSONDecodeError: return {}
+def roadmap_entry(pl, p):
+    t = read(pl / "ROADMAP.md")
+    m = re.search(r"^#{2,4}[ \t]*\*{0,2}Phase[ \t]+%s\b.*$" % re.escape(p["num"]), t, re.M)
+    if not m: return ""
+    nxt = re.search(r"^#{2,4}[ \t]", t[m.end():], re.M)
+    return t[m.start():m.end() + (nxt.start() if nxt else len(t) - m.end())].strip()
+def cmd_context(pl, p):
+    out, cfg, proj = [], config(pl), read(pl / "PROJECT.md")
+    out.append("## Project\n\n" + cap(section(proj, "Vision", "Overview", "Core Value") or cap(proj, 15), 15))
+    for f, n in (("conventions.md", "Conventions"), ("stack.md", "Stack")):
+        if (pl / "codebase" / f).exists():
+            out.append("### %s\n\n%s" % (n, cap(re.sub(r"\A#[ \t][^\n]*\n+", "", read(pl / "codebase" / f)), 40)))
+    entry = roadmap_entry(pl, p)
+    out.append("## Phase %s\n\n%s" % (p["prefix"], entry or "%s — no ROADMAP entry found." % p["name"]))
+    reqs = re.findall(r"REQ-\d+", entry)
+    lines = [l for l in read(pl / "REQUIREMENTS.md").splitlines() if any(r in l for r in reqs)] if reqs else []
+    if lines: out.append("## Requirements\n\n" + "\n".join(lines))
+    dec = section(read(state_file(pl)), "Decisions", "Decisions Made")
+    if dec: out.append("## Decisions\n\n" + tail(dec, 20))
+    ctx = p["dir"] and (p["dir"] / (p["prefix"] + "-CONTEXT.md"))
+    if ctx and ctx.exists(): out.append("## Context\n\n" + read(ctx).strip())
+    ch = next((c for c in [pl / "continue-here.md", p["dir"] and p["dir"] / ".continue-here.md"] if c and c.exists()), None)
+    if ch: out.append("## Handoff (continue-here.md)\n\n" + cap(read(ch).strip(), 40))
+    if cfg.get("verify"): out.append("## Verify commands\n\n```json\n%s\n```" % json.dumps(cfg["verify"], indent=2))
+    prev = [x for x in phases(pl) if key(x["num"]) < key(p["num"]) and x["dir"]]
+    if prev:
+        q = prev[-1]
+        b = [x for x in (section(read(f), "Delivered") + "\n" + section(read(f), "Iterations")
+             for f in sorted(q["dir"].glob(q["prefix"] + "-*-SUMMARY.md"))) if x.strip()]
+        if b: out.append("## Previous phase (%s)\n\n%s" % (q["prefix"], "\n\n".join(x.strip() for x in b)))
+    print("\n\n".join(out))
+def cmd_tryit(pl, p):
+    files = sorted(p["dir"].glob(p["prefix"] + "-*-SUMMARY.md")) if p["dir"] else []
+    for f in files:
+        t = read(f); hc = section(t, "Needs human check")
+        body = "\n\n".join(x for x in [section(t, "Try it"), "**Needs human check**\n" + hc if hc else ""] if x)
+        print("### %s\n\n%s\n" % (f.name, (body or section(t, "Delivered", "Accomplishments", "What was built") or cap(t, 20)).strip()))
+    if not files: print("No SUMMARY.md files in phase %s yet." % p["prefix"])
+
+# ---------- iterations / quick ----------
+def iter_file(p): return p["dir"] / (p["prefix"] + "-ITERATIONS.md")
+def iter_log(p, text):
+    f = iter_file(p)
+    if not f.exists():
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("---\nphase: %s\nstatus: open\nstarted: %s\napproved: \n---\n# Iterations — Phase %s\n\n"
+                     % (p["prefix"], datetime.now().strftime("%Y-%m-%dT%H:%M"), p["prefix"]), encoding="utf-8")
+    f.write_text(read(f).rstrip("\n") + "\n- %s — %s\n" % (datetime.now().strftime("%H:%M"), text), encoding="utf-8")
+def iter_approve(p):
+    f = iter_file(p)
+    if not f.exists(): iter_log(p, "approved without logged iterations")
+    s = re.sub(r"^status:.*$", "status: approved", read(f), count=1, flags=re.M)
+    f.write_text(re.sub(r"^approved:.*$", "approved: " + datetime.now().strftime("%Y-%m-%dT%H:%M"), s, count=1, flags=re.M), encoding="utf-8")
+    return f
+
+def iter_lines(p):
+    f = iter_file(p)
+    return [l for l in read(f).splitlines() if l.startswith("- ")] if f.exists() else []
+
+# ---------- init / adopt ----------
+def templates():
+    here = Path(__file__).resolve().parent
+    for c in [here / "../skills/gsdf-templates", here / "../.claude/skills/gsdf-templates",
+              Path.cwd() / ".claude/skills/gsdf-templates", Path.home() / ".claude/skills/gsdf-templates"]:
+        if c.is_dir(): return c.resolve()
+    return None
+def detect(root):
+    cfg = {"verify": {}, "phases_per_milestone": 4, "research": "auto"}
+    cm = read(root / "CMakeLists.txt")
+    m = re.search(r"project\s*\(\s*([A-Za-z0-9_\-]+)", cm)
+    name = m.group(1) if m else "<Plugin>"
+    if cm:
+        cfg["verify"].update(build="cmake --build build --config Release", test="ctest --test-dir build --output-on-failure")
+        cfg["standalone_target"] = name + "_Standalone"
+    ui = next((d for d in ("ui", "Source/ui", "web") if (root / d / "package.json").exists()), None)
+    if ui:
+        try: sc = json.loads(read(root / ui / "package.json")).get("scripts", {})
+        except json.JSONDecodeError: sc = {}
+        cfg["ui_dir"] = ui
+        if "test" in sc: cfg["verify"]["ui"] = "cd %s && npm test" % ui
+        if "dev" in sc: cfg["verify"]["ui_dev"] = "cd %s && npm run dev" % ui
+    cfg["verify"]["plugin_validate"] = ("pluginval --strictness-level 5 --validate build/%s_artefacts/Release/VST3/%s.vst3" % (name, name)) if shutil.which("pluginval") else "<pluginval not on PATH>"
+    return cfg
+def merge(dst, src):
+    for k, v in src.items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict): merge(dst[k], v)
+        elif k not in dst or dst.get(k) in ("", None): dst[k] = v
+    return dst
+def cmd_adopt(pl):
+    (pl / "config.json").write_text(json.dumps(merge(config(pl), detect(pl.parent)), indent=2) + "\n", encoding="utf-8")
+    print("Adopted %s" % pl); cmd_list(pl); print(); cmd_next(pl)
+def cmd_init(name):
+    root = Path.cwd(); pl = root / ".planning"
+    if pl.is_dir(): die(".planning/ already exists — run `gsdf adopt`")
+    t = templates() or die("templates not found (looked for .claude/skills/gsdf-templates)")
+    (pl / "phases").mkdir(parents=True); (pl / "quick").mkdir()
+    sub = {"{{NAME}}": name, "{{DATE}}": date.today().isoformat(), "{{MILESTONE}}": "v1.0"}
+    for dst in ("PROJECT.md", "ROADMAP.md", "STATE.md"):
+        s = read(t / dst.replace(".md", ".template.md"))
+        for k, v in sub.items(): s = s.replace(k, v)
+        (pl / dst).write_text(s, encoding="utf-8")
+    (pl / "config.json").write_text(json.dumps(detect(root), indent=2) + "\n", encoding="utf-8")
+    print("Initialised %s for %s" % (pl, name))
+
+# ---------- output commands ----------
+def cmd_next(pl):
+    if not pl: return print("new-project")
+    p = current(pl)
+    print("milestone-done" if not p else "%s %s" % (p["status"], p["prefix"]))
+def cmd_list(pl):
+    print("| NN | slug | status | plans | done | iterations |\n|---|---|---|---|---|---|")
+    for p in phases(pl):
+        pls = plans_of(p["dir"], p["prefix"])
+        print("| %s | %s | %s | %d | %d | %d |" % (p["prefix"], p["slug"], p["status"], len(pls),
+              sum(1 for x in pls if x["has_summary"]), len(iter_lines(p)) if p["dir"] else 0))
+def cmd_advance(pl):
+    p = current(pl) or die("every phase is already complete")
+    if not p["dir"]:
+        p["dir"] = pl / "phases" / ("%s-%s" % (p["prefix"], p["slug"])); p["dir"].mkdir(parents=True, exist_ok=True)
+    iter_approve(p)
+    t = read(pl / "ROADMAP.md"); orig = t
+    t = re.sub(r"^([ \t]*[-*][ \t]*)\[[ ]\]([ \t]*\**Phase[ \t]+%s\b)" % re.escape(p["num"]), r"\1[x]\2", t, count=1, flags=re.M)
+    blk = re.search(r"^#{2,4}[ \t]*\*{0,2}Phase[ \t]+%s\b.*?(?=^#{2,4}[ \t]|\Z)" % re.escape(p["num"]), t, re.M | re.S)
+    if blk:
+        nb = re.sub(r"(\*{0,2}Status\*{0,2}:[ \t]*)(pending|in progress|planned|todo)", r"\1complete", blk.group(0), flags=re.I)
+        nb = nb.replace("⏳", "✅"); t = t[:blk.start()] + nb + t[blk.end():]
+    if t == orig: t = t.rstrip("\n") + "\n\n<!-- gsdf: phase %s complete -->\n" % p["prefix"]
+    (pl / "ROADMAP.md").write_text(t, encoding="utf-8")
+    nxt = current(pl)
+    state_set(pl, "phase", nxt["prefix"] if nxt else p["prefix"])
+    print("Phase %s complete. Next: %s" % (p["prefix"], (nxt["prefix"] + " " + nxt["slug"]) if nxt else "milestone-done"))
+def cmd_quick_new(pl, s):
+    q = pl / "quick"; q.mkdir(exist_ok=True)
+    n = max([int(m.group(1)) for d in q.glob("*") if d.is_dir() and (m := re.match(r"^(\d+)-", d.name))] or [0]) + 1
+    d = q / ("%03d-%s" % (n, slug(s))); d.mkdir(); print(d)
+
+def main(a):
+    c = a[0] if a else "next"
+    if c == "init": return cmd_init(a[1] if len(a) > 1 else die("usage: gsdf init <name>"))
+    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt state next phase plans waves context tryit iter quick")
+    pl = planning()
+    if c == "next": return cmd_next(pl)
+    pl = pl or need()
+    if c == "adopt": return cmd_adopt(pl)
+    if c == "state":
+        if len(a) == 1: return cmd_state(pl)
+        s = a[1]
+        if s == "set": return state_set(pl, a[2], " ".join(a[3:]))
+        if s == "note": return state_append(pl, r"Decisions(?:[ \t]+Made)?", "Decisions", "- %s — %s" % (date.today().isoformat(), " ".join(a[2:])))
+        if s == "defer": return state_append(pl, r"Deferred(?:[ \t]+Items)?", "Deferred", "- %s — %s" % (date.today().isoformat(), " ".join(a[2:])))
+        if s == "position": return state_position(pl, " ".join(a[2:]))
+        die("unknown: gsdf state %s" % s)
+    if c == "phase":
+        s = a[1] if len(a) > 1 else "current"
+        if s == "list": return cmd_list(pl)
+        if s == "advance": return cmd_advance(pl)
+        p = find(pl, a[2] if len(a) > 2 else None)
+        if s == "current": return print("%s %s %s" % (p["prefix"], p["slug"], p["status"]))
+        if s == "dir":
+            if not p["dir"]:
+                p["dir"] = pl / "phases" / ("%s-%s" % (p["prefix"], p["slug"])); p["dir"].mkdir(parents=True, exist_ok=True)
+            return print(p["dir"].resolve())
+        die("unknown: gsdf phase %s" % s)
+    if c == "quick":
+        if len(a) > 1 and a[1] == "new": return cmd_quick_new(pl, a[2] if len(a) > 2 else die("usage: gsdf quick new <slug>"))
+        return print("\n".join(sorted(d.name for d in (pl / "quick").glob("*") if d.is_dir())) if (pl / "quick").is_dir() else "")
+    if c == "iter":
+        s = a[1] if len(a) > 1 else die("usage: gsdf iter log|list|count|approve <N> [text]")
+        p = find(pl, a[2] if len(a) > 2 else None)
+        if not p["dir"]: die("phase %s has no directory yet" % p["prefix"])
+        if s == "approve": return print(iter_approve(p))
+        if s == "log": return iter_log(p, " ".join(a[3:]) or die("usage: gsdf iter log <N> \"<text>\""))
+        if s == "list": return print("\n".join(iter_lines(p)))
+        if s == "count": return print(len(iter_lines(p)))
+        die("unknown: gsdf iter %s" % s)
+    p = find(pl, a[1] if len(a) > 1 else None)
+    if c == "plans": return print(json.dumps([{k: v for k, v in x.items() if k != "has_depends"} for x in plans_of(p["dir"], p["prefix"])], indent=2))
+    if c == "waves": return print(json.dumps(waves(plans_of(p["dir"], p["prefix"]))))
+    if c == "context": return cmd_context(pl, p)
+    if c == "tryit": return cmd_tryit(pl, p)
+    die("unknown subcommand: %s (try `gsdf help`)" % c)
+
+if __name__ == "__main__":
+    try: main(sys.argv[1:])
+    except BrokenPipeError: pass
