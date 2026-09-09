@@ -184,6 +184,8 @@ Every command has been executed for real against live projects, not just unit-te
 | `progress` on foreign trees | An original-GSD project → `execute 02`; a gsd-core project → `iterate 02`; zero questions, nothing renamed |
 | Milestone close | Tag written, phases + roadmap `git mv`'d into `milestones/v1.0/` — git recorded renames, nothing lost |
 | Conditional research | Phase introducing JUCE researched and wrote `01-RESEARCH.md`; phase with no new dependency correctly did not |
+| `--skip-research` | Honoured on a phase with a live dependency — no `RESEARCH.md`, and the planner said why it needed none |
+| Plan gates | `gsdf lint` catches a missing `<fails_when>`, an oversized plan, empty requirements and a missing `## Try it`; `gsdf conflicts` refused a real wave where two plans both appended to `CMakeLists.txt` |
 | Iterate re-entry after `/clear` | Reprinted Try-it and the change log, resumed cleanly |
 
 Nine bugs were found this way that the test suite could not have caught, including `approve`
@@ -198,10 +200,11 @@ committing before it had finished writing its own state.
   `~/.claude/commands/gsdf/` beats a fresh project copy. `install.sh` warns when it sees this.
 - **Permissions need a trusted workspace.** Claude Code ignores `permissions.allow` until you
   open the project interactively once and accept the trust dialog.
-- **`--research` / `--skip-research` are untested as explicit flags.** The `research: auto`
-  behaviour they override is proven live in both directions; the flags themselves are not.
-- **The plan-retry gate has never fired.** `plan` re-spawns the planner once if a plan fails its
-  checks — no planner output has failed a check yet, so that branch is unexercised.
+- **`--research` (force) is untested.** `--skip-research` is proven, as is the `research: auto`
+  behaviour both flags override.
+- **The plan re-spawn has never fired.** `gsdf lint` and `gsdf conflicts` are proven to *detect*
+  every failure they check for, but no planner output has actually failed one, so the branch that
+  re-spawns the planner with the failure text is unexercised.
 - **~17 conformance checks only assert that the prose says the right thing.** They are regression
   guards against an instruction being edited out, not evidence that an agent complies. Only the
   live runs above are that.
