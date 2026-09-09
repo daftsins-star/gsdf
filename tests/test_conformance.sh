@@ -146,6 +146,27 @@ has "plan runs gsdf conflicts" "$(cat $C/plan.md)" "gsdf conflicts N"
 has "plan feeds the failure back to the planner" "$(cat $C/plan.md)" "re-spawn instruction"
 has "README documents 'gsdf lint'" "$(cat README.md)" "gsdf lint"
 
+echo "== /gsdf:help does not drift from the commands it describes =="
+diff <(grep -oE "/gsdf:[a-z-]+" $C/help.md | sed 's|/gsdf:||' | sort -u) \
+     <(ls $C/*.md | xargs -n1 basename | sed 's/.md//' | sort -u) >/dev/null \
+  && ok "help lists exactly the commands that exist" || bad "help command list" "drifted from $C/"
+# every command help claims takes 0 spawns must actually take 0
+for c in discuss iterate approve progress help; do
+  grep -qE "^  /gsdf:$c.*0 spawns" $C/help.md || continue
+  is "help's '0 spawns' claim for $c" "$(grep -icE 'spawn[^.]{0,40}(gsdf-planner|gsdf-executor)' $C/$c.md)" "0"
+done
+# new-project and plan each have one spawn site; quick has two conditional sites
+# (executor, or planner with --plan-first) but fires exactly one. What matters is that
+# each states a one-spawn budget in its success criteria.
+for c in new-project plan quick; do
+  grep -qE "^  /gsdf:$c.*1 spawn" $C/help.md || continue
+  has "$c states a one-subagent budget" "$(cat $C/$c.md)" "one subagent"
+done
+# internal doc links must resolve
+for f in $(grep -ohE '\]\(([A-Za-z0-9_.-]+\.md)\)' *.md | sed 's/](\(.*\))/\1/' | sort -u); do
+  is "doc link resolves: $f" "$([ -f "$f" ] && echo yes)" "yes"
+done
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 

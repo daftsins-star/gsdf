@@ -213,7 +213,7 @@ committing before it had finished writing its own state.
 
 ```bash
 bash tests/test_cli.sh          # 102 checks — CLI behaviour against 7 fixture projects
-bash tests/test_conformance.sh  # 90 checks — spawn, size and token budgets; the git protocol
+bash tests/test_conformance.sh  # 99 checks — spawn, size and token budgets; the git protocol
 ```
 
 `tests/fixtures/` holds two `.planning/` trees built by hand from the real templates of both
