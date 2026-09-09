@@ -39,7 +39,7 @@ touching entries you already have.
 installer runs `gsdf adopt`: it merges the config keys it needs, leaves every other key alone,
 reports where the project stands, and writes nothing under `phases/`.
 
-## The nine commands
+## The eleven commands
 
 | | | Spawns |
 |---|---|---|
@@ -51,6 +51,8 @@ reports where the project stands, and writes nothing under `phases/`.
 | `/gsdf:approve [N]` | Verify, one commit, advance the phase | 0 |
 | `/gsdf:quick "<task>"` | One-off work outside the current phase | 1 |
 | `/gsdf:progress` | Where am I; `--next` runs the next step | 0 |
+| `/gsdf:pause [N]` | Write a handoff and stop — resume in a fresh session | 0 |
+| `/gsdf:resume [N]` | Restore a paused session from its handoff | 0 |
 | `/gsdf:help` | The loop and the commands | 0 |
 
 `discuss` is optional. `plan` is not.

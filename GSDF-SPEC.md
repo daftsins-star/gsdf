@@ -100,7 +100,7 @@ Copy **wording**, never machinery. Both are MIT — keep `NOTICE.md` crediting b
 ```
 gsdf/
 ├── GSDF-SPEC.md              # this file
-├── README.md                 # install, the 9 commands, the loop diagram, benchmark
+├── README.md                 # install, the 11 commands, the loop diagram, benchmark
 ├── NOTICE.md                 # MIT attribution: get-shit-done (TÂCHES) and gsd-core (open-gsd)
 ├── LICENSE                   # MIT
 ├── install.sh                # copies .claude/ tree into a target project (§9)
@@ -116,6 +116,8 @@ gsdf/
 │   │   ├── approve.md
 │   │   ├── quick.md
 │   │   ├── progress.md
+│   │   ├── pause.md
+│   │   ├── resume.md
 │   │   └── help.md
 │   ├── agents/
 │   │   ├── gsdf-planner.md
@@ -136,7 +138,10 @@ gsdf/
     └── fixtures/             # fake .planning/ trees covering every gsdf next state
 ```
 
-**9 commands, 2 agents, 1 template skill, 1 CLI.** Do not add more.
+**11 commands, 2 agents, 1 template skill, 1 CLI.** Do not add more. The two session-boundary
+commands (`pause`, `resume`) exist because a session ends mid-phase and `gsdf next` recovers the
+position but never the reasoning; that is the only gap a command was ever added for. Anything
+else still does not get one.
 
 Templates produce files using the **GSD-native names** (`NN-MM-PLAN.md`, `NN-CONTEXT.md`, …, §4a).
 The template filenames above are just the template names.
@@ -198,7 +203,7 @@ control flow.
 ├── research/            # original GSD: left untouched
 ├── codebase/            # original GSD map-codebase output: left untouched, READ by gsdf context (conventions.md, stack.md)
 ├── todos/               # left untouched
-├── continue-here.md     # gsd-core pause-work handoff: READ by gsdf context if newer than STATE.md, never written
+├── continue-here.md     # pause handoff, GSD-compatible: READ by gsdf context; written by /gsdf:pause, not the CLI
 ├── milestones/          # archived phases: left untouched; gsdf progress writes here on milestone-done
 ├── quick/NNN-slug/      # PLAN.md + SUMMARY.md (unprefixed, as both GSDs do). Numbering continues from the highest existing NNN.
 └── phases/NN-slug/      # 2-digit or 3-digit NN — accept both, never renumber
@@ -593,8 +598,24 @@ Command files: YAML frontmatter with `description:` (≤ 70 chars — it's loade
 - `milestone-done`: offer to archive `phases/` → `milestones/vX/`, tag, and run the new-project
   questions for the next milestone. Inline.
 
+### `/gsdf:pause [N]`
+- `effort: low`. Writes a handoff to `<phase dir>/.continue-here.md`, or `.planning/continue-here.md`
+  when there is no phase — the two paths `gsdf context` reads (§5), so it is GSD-compatible both ways.
+- Uncommitted-file list is copied from `git status --porcelain`, capped at 50, never rounded to empty.
+- Writes through `gsdf state position` and `gsdf state set status paused`. Commits nothing but the
+  handoff itself, and skips that too when `commit_docs` is false or `.planning/` is gitignored.
+- Zero spawns.
+
+### `/gsdf:resume [N]`
+- `effort: low`. Reads the handoff in full (the only file it opens directly — `gsdf context`
+  caps it at 40 lines, which can clip the next action), re-measures `git status --porcelain`.
+- Routes on `gsdf next`, never on the handoff: same mapping as `/gsdf:progress`, and a blocked
+  phase is never routed into iterate mode.
+- Consumes the handoff — deletes it once restored, so no later `gsdf context N` carries a stale
+  session. Zero spawns, zero code commits.
+
 ### `/gsdf:help`
-- `effort: low`. One screen: the loop diagram, 9 commands one line each, "say approved".
+- `effort: low`. One screen: the loop diagram, 11 commands one line each, "say approved".
 
 ### Agent `gsdf-planner.md`
 Frontmatter: `name: gsdf-planner`, one-line `description`, `tools: Read, Grep, Glob, Bash, Write, WebSearch, WebFetch`. **No `model:`.** < 120 lines.
@@ -745,6 +766,6 @@ Then the fresh-project loop:
 
 ## 13. Report when done
 
-File tree; line counts of both agents and all nine commands; the description-character total;
+File tree; line counts of both agents and all eleven commands; the description-character total;
 `gsdf context 1` token estimate; benchmark numbers; every deviation from this spec with one
 sentence of reason. Then stop.
