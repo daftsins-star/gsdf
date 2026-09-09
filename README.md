@@ -153,6 +153,21 @@ Measured on the test fixtures:
 build script without simulating it, and a simulated number is worse than no number. The
 procedure is written out in `GSDF-SPEC.md` §12; run it and the numbers go here.
 
+## Limitations
+
+- **macOS and Linux.** `install.sh` is bash. The CLI itself is stdlib Python and portable, so a
+  Windows install is a matter of copying the four directories and putting `bin/gsdf` on PATH.
+- **A global install shadows a project install.** User-level commands win, so a stale
+  `~/.claude/commands/gsdf/` beats a fresh project copy. `install.sh` warns when it sees this.
+- **Permissions need a trusted workspace.** Claude Code ignores `permissions.allow` until you
+  open the project interactively once and accept the trust dialog.
+- **`/gsdf:discuss` has not been executed end to end.** It is built on `AskUserQuestion`, which
+  needs a real person, so it cannot be exercised headlessly. Every other command has been.
+- **Parallel execution is verified synthetically, not in a live run.** The concurrent-commit
+  protocol was proven with two real git workers under maximum contention (61/61 commits, no
+  cross-contamination); the live dogfood phase happened to plan as a single plan, so it exercised
+  the machinery but not the parallelism.
+
 ## Tests
 
 ```bash
