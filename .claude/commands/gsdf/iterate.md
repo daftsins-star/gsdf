@@ -62,7 +62,10 @@ this phase delivered, say so in one sentence and offer `/gsdf:quick "<it>"` or "
 deferred". Don't quietly grow the phase. Phase boundaries are fixed; iterating clarifies HOW
 this phase's work behaves, not WHETHER to add more to it.
 
-**No commits.** The tree accumulates until approve. Deliberate.
+**No commits.** The tree accumulates until approve. Deliberate — but `gsdf iter log` parks a
+recoverable snapshot under `refs/gsdf/iter/NN/` on every logged change, so a session is never one
+stray `git checkout` from gone. These are stash objects, not commits: invisible to `git log` and
+`git status`. To recover: `git for-each-ref refs/gsdf/` then `git stash apply <ref>`.
 
 **Every 10 logged changes**, print exactly one line: *"10 changes logged. Safe to `/clear` and
 `/gsdf:iterate N` if the session feels slow."*

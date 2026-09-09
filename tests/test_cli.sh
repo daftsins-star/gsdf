@@ -114,6 +114,20 @@ is "still iterate until approved" "$("$GSDF" next)" "iterate 01"
 "$GSDF" iter approve 01 >/dev/null
 is "approved -> phase complete" "$("$GSDF" next)" "plan 02"
 
+echo "== 7b. iterate work is recoverable even though nothing is committed =="
+sandbox native-iterate
+git init -q . && git config user.email t@t && git config user.name t
+git add -A && git commit -qm base
+echo "original" > knob.css && git add knob.css && git commit -qm knob
+echo "edited to 44px" > knob.css
+"$GSDF" iter log 1 "Knob too small -> 44px [knob.css]"
+is "a snapshot ref was parked" "$(git for-each-ref refs/gsdf/ | wc -l | tr -d ' ')" "1"
+is "snapshot is not a commit on the branch" "$(git log --oneline | wc -l | tr -d ' ')" "2"
+git checkout -- knob.css
+is "catastrophe: edit is gone" "$(cat knob.css)" "original"
+git stash apply "$(git for-each-ref refs/gsdf/ --format='%(refname)' | head -1)" >/dev/null 2>&1
+is "recovered from the snapshot" "$(cat knob.css)" "edited to 44px"
+
 echo "== 8. phase advance flips markers in the format it finds =="
 sandbox original-midphase
 "$GSDF" phase advance >/dev/null

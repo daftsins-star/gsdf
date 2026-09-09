@@ -257,6 +257,21 @@ def iter_log(p, text):
         f.write_text("---\nphase: %s\nstatus: open\nstarted: %s\napproved: \n---\n# Iterations — Phase %s\n\n"
                      % (p["prefix"], datetime.now().strftime("%Y-%m-%dT%H:%M"), p["prefix"]), encoding="utf-8")
     f.write_text(read(f).rstrip("\n") + "\n- %s — %s\n" % (datetime.now().strftime("%H:%M"), text), encoding="utf-8")
+    snapshot(f.parent, p["prefix"])
+
+def snapshot(cwd, prefix):
+    """Iterate mode deliberately makes no commits, so a whole session lives in the worktree.
+    Park a recoverable snapshot in refs/gsdf/ — not a commit on any branch, invisible to
+    git log and git status, and restorable with `git stash apply <ref>`."""
+    import subprocess
+    try:
+        h = subprocess.run(["git", "stash", "create"], cwd=cwd, capture_output=True, text=True, timeout=15)
+        sha = h.stdout.strip()
+        if h.returncode == 0 and sha:
+            subprocess.run(["git", "update-ref", "refs/gsdf/iter/%s/%s" % (prefix, sha[:8]), sha],
+                           cwd=cwd, capture_output=True, timeout=15)
+    except Exception:
+        pass                                    # never let a snapshot failure break a log call
 def iter_approve(p):
     f = iter_file(p)
     if not f.exists(): iter_log(p, "approved without logged iterations")
