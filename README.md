@@ -184,13 +184,16 @@ Every command has been executed for real against live projects, not just unit-te
 | `progress` on foreign trees | An original-GSD project → `execute 02`; a gsd-core project → `iterate 02`; zero questions, nothing renamed |
 | Milestone close | Tag written, phases + roadmap `git mv`'d into `milestones/v1.0/` — git recorded renames, nothing lost |
 | Conditional research | Phase introducing JUCE researched and wrote `01-RESEARCH.md`; phase with no new dependency correctly did not |
-| `--skip-research` | Honoured on a phase with a live dependency — no `RESEARCH.md`, and the planner said why it needed none |
+| `--skip-research` / `--research` | Both honoured: skip wrote no `RESEARCH.md` on a phase with a live dependency; force wrote one on a phase that needed none |
+| Concurrent state writes | 8 parallel `gsdf state defer` calls all land (3 of 8 before the fix) |
+| Malformed input | 13 corrupt-tree cases — bad frontmatter, binary files, invalid JSON, empty roadmap — exit cleanly, never crash |
 | Plan gates | `gsdf lint` catches a missing `<fails_when>`, an oversized plan, empty requirements and a missing `## Try it`; `gsdf conflicts` refused a real wave where two plans both appended to `CMakeLists.txt` |
 | Iterate re-entry after `/clear` | Reprinted Try-it and the change log, resumed cleanly |
 
-Nine bugs were found this way that the test suite could not have caught, including `approve`
-marking the *wrong phase* complete, a blocked plan counting as a finished one, and `approve`
-committing before it had finished writing its own state.
+Fourteen bugs were found this way that the test suite could not have caught, including `approve`
+marking the *wrong phase* complete, a blocked plan counting as a finished one, `approve`
+committing before it had finished writing its own state, `adopt` destroying a `config.json` it
+could not parse, and parallel `gsdf` writes silently losing updates.
 
 ## Limitations
 
@@ -200,8 +203,6 @@ committing before it had finished writing its own state.
   `~/.claude/commands/gsdf/` beats a fresh project copy. `install.sh` warns when it sees this.
 - **Permissions need a trusted workspace.** Claude Code ignores `permissions.allow` until you
   open the project interactively once and accept the trust dialog.
-- **`--research` (force) is untested.** `--skip-research` is proven, as is the `research: auto`
-  behaviour both flags override.
 - **The plan re-spawn has never fired.** `gsdf lint` and `gsdf conflicts` are proven to *detect*
   every failure they check for, but no planner output has actually failed one, so the branch that
   re-spawns the planner with the failure text is unexercised.
