@@ -64,10 +64,12 @@ def plans_of(pdir, prefix):
     for f in sorted(pdir.glob(prefix + "-*-PLAN.md")):
         m = re.match(r"^%s-(\d+)-PLAN\.md$" % re.escape(prefix), f.name)
         if not m: continue
-        fm = frontmatter(read(f)); pid = m.group(1)
+        txt = read(f); fm = frontmatter(txt); pid = m.group(1)
         s = pdir / ("%s-%s-SUMMARY.md" % (prefix, pid))
+        files = sorted({x.strip() for grp in re.findall(r"<files>(.*?)</files>", txt, re.S) for x in grp.split(",") if x.strip()}
+                       | set(as_list(fm.get("files_modified"))))
         out.append({"id": pid, "file": str(f), "depends_on": [dep_id(x) for x in as_list(fm.get("depends_on"))],
-                    "has_depends": "depends_on" in fm, "wave": fm.get("wave"), "has_summary": s.exists(),
+                    "has_depends": "depends_on" in fm, "wave": fm.get("wave"), "files": files, "has_summary": s.exists(),
                     "status": (frontmatter(read(s)).get("status", "complete") if s.exists() else "pending")})
     return out
 
@@ -202,6 +204,20 @@ def cmd_context(pl, p):
              for f in sorted(q["dir"].glob(q["prefix"] + "-*-SUMMARY.md"))) if x.strip()]
         if b: out.append("## Previous phase (%s)\n\n%s" % (q["prefix"], "\n\n".join(x.strip() for x in b)))
     print("\n\n".join(out))
+def cmd_conflicts(pl, p):
+    """Two plans in the same wave must never touch the same file. Exit 1 if any do."""
+    plans = {x["id"]: x for x in plans_of(p["dir"], p["prefix"])}
+    bad = 0
+    for w in waves(list(plans.values())):
+        for i, a in enumerate(w):
+            for b in w[i + 1:]:
+                shared = sorted(set(plans[a]["files"]) & set(plans[b]["files"]))
+                if shared:
+                    bad += 1
+                    print("wave conflict: %s-%s and %s-%s both write %s" % (p["prefix"], a, p["prefix"], b, ", ".join(shared)))
+    if bad: sys.exit(1)
+    print("no same-wave file conflicts in phase %s" % p["prefix"])
+
 def cmd_tryit(pl, p):
     files = sorted(p["dir"].glob(p["prefix"] + "-*-SUMMARY.md")) if p["dir"] else []
     for f in files:
@@ -310,7 +326,7 @@ def cmd_quick_new(pl, s):
 def main(a):
     c = a[0] if a else "next"
     if c == "init": return cmd_init(a[1] if len(a) > 1 else die("usage: gsdf init <name>"))
-    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt state next phase plans waves context tryit iter quick")
+    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt state next phase plans waves conflicts context tryit iter quick")
     pl = planning()
     if c == "next": return cmd_next(pl)
     pl = pl or need()
@@ -349,6 +365,7 @@ def main(a):
     p = find(pl, a[1] if len(a) > 1 else None)
     if c == "plans": return print(json.dumps([{k: v for k, v in x.items() if k != "has_depends"} for x in plans_of(p["dir"], p["prefix"])], indent=2))
     if c == "waves": return print(json.dumps(waves(plans_of(p["dir"], p["prefix"]))))
+    if c == "conflicts": return cmd_conflicts(pl, p)
     if c == "context": return cmd_context(pl, p)
     if c == "tryit": return cmd_tryit(pl, p)
     die("unknown subcommand: %s (try `gsdf help`)" % c)

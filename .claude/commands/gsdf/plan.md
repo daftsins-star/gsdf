@@ -35,7 +35,7 @@ it is how a planner ends up with 30k tokens of preamble before it reads a line o
 | Every plan file listed actually exists | re-spawn |
 | `estimated_tokens < 120000` on every plan | re-spawn: "split plan MM" |
 | Every `<verify>` has a `<fails_when>` | re-spawn: "add failure signals" |
-| No two plans in the same wave name the same file | re-spawn: "serialise MM and MM" |
+| `.claude/bin/gsdf conflicts N` exits 0 | re-spawn: "serialise MM and MM" |
 
 **One retry, maximum.** Re-spawn once with the specific instruction. If it comes back wrong
 again, show what's wrong and stop — don't hand a broken plan to an executor and don't fix the

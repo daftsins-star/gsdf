@@ -94,7 +94,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~350 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~375 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out.
 
 ```bash
@@ -104,6 +104,7 @@ gsdf context 2           # exactly what the planner is given — ~560 tokens, no
 gsdf tryit 2             # how to see the work, and what needs a human eye
 gsdf iter log 2 "..."    # one line per accepted change
 gsdf waves 2             # [["01"], ["02"]]
+gsdf conflicts 2         # exits 1 if two plans in one wave write the same file
 ```
 
 Every read subcommand is pure — the test suite asserts `git status` is clean after all of them.
@@ -127,8 +128,8 @@ procedure is written out in `GSDF-SPEC.md` §12; run it and the numbers go here.
 ## Tests
 
 ```bash
-bash tests/test_cli.sh          # 52 checks — CLI behaviour against 7 fixture projects
-bash tests/test_conformance.sh  # 40 checks — the spawn, size and token budgets
+bash tests/test_cli.sh          # 56 checks — CLI behaviour against 7 fixture projects
+bash tests/test_conformance.sh  # 46 checks — spawn, size and token budgets; the git protocol
 ```
 
 `tests/fixtures/` holds two `.planning/` trees built by hand from the real templates of both

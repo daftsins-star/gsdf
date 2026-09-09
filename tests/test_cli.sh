@@ -66,6 +66,17 @@ sandbox native-iterate
 sed -i.bak 's/^depends_on: \["01"\]/depends_on: []/' .planning/phases/01-drive/01-02-PLAN.md && rm -f .planning/phases/01-drive/*.bak
 is "waves: independent plans run parallel" "$("$GSDF" waves 01)" '[["01", "02"]]'
 
+echo "== 5b. same-wave file conflicts are detectable, not just asserted =="
+cd "$FIX/native-execute"; is "no conflict in a serial phase" "$("$GSDF" conflicts 1)" "no same-wave file conflicts in phase 01"
+sandbox native-execute
+# make 01-02 parallel with 01-01 AND have it write a file 01-01 already writes
+sed -i.bak 's/^depends_on: \["01"\]/depends_on: []/' .planning/phases/01-drive/01-02-PLAN.md
+sed -i.bak 's|<files>Source/dsp/Shaper.h</files>|<files>Source/ParamIDs.h</files>|' .planning/phases/01-drive/01-02-PLAN.md
+rm -f .planning/phases/01-drive/*.bak
+is "same wave now" "$("$GSDF" waves 1)" '[["01", "02"]]'
+"$GSDF" conflicts 1 >/dev/null 2>&1; is "conflict exits non-zero" "$?" "1"
+has "conflict names the file" "$("$GSDF" conflicts 1)" "both write Source/ParamIDs.h"
+
 echo "== 6. state read/write tolerance =="
 sandbox original-midphase
 has "state prints old Current Position" "$("$GSDF" state)" "Phase: 2 of 4 (Gain stage)"
