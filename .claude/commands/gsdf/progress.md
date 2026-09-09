@@ -37,14 +37,16 @@ reading those files directly is how a session's context gets eaten before any wo
 
 **3. With `--next`, run it** — invoke the matching command's behaviour directly, in this session.
 
-For `milestone-done`, do it inline, no subagent:
+For `milestone-done`, close it out inline — **this command spawns nothing**:
 1. Ask (one `AskUserQuestion`) whether to close the milestone now.
 2. `git tag` the milestone name from STATE.md frontmatter, if the tree is clean.
 3. `mkdir -p .planning/milestones/<milestone>` and `git mv .planning/phases/* .planning/milestones/<milestone>/`.
    Move, never delete. Everything under `.planning/` that GSDF didn't create stays where it is.
-4. Ask the `/gsdf:new-project` questions for the next milestone (goal, must-haves, out-of-scope
-   — at most 4), update PROJECT.md, then spawn **one** `gsdf-planner` in mode `roadmap` for the
-   new ROADMAP.md. Set `gsdf state set milestone <next>` and `gsdf state set phase 01`.
+4. Ask what the next milestone is for (goal, must-haves, out-of-scope — at most 4 questions),
+   append the answers to PROJECT.md, then
+   `gsdf state set milestone <next>` and `gsdf state set phase 01`.
+5. Say: ``Milestone <prev> archived. Next: `/gsdf:new-project` to roadmap <next>.`` That command
+   owns roadmap generation — it sees the empty `phases/` and picks up from your answers.
 
 </process>
 

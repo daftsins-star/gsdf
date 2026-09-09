@@ -23,6 +23,10 @@ Print its output and **stop**: "This project is already set up — continue with
 `/gsdf:progress --next`." Never re-initialise. That directory may hold months of work from
 get-shit-done or gsd-core, and GSDF's job is to pick it up, not replace it.
 
+**Exception — a milestone rollover.** If `.planning/` exists but `.planning/phases/` is empty
+(`/gsdf:progress --next` just archived it), don't stop. Skip `gsdf init` at step 4, leave
+PROJECT.md's history alone, and go straight to steps 3 and 5 to roadmap the new milestone.
+
 **2. Scan the repo inline** — no subagent, this is five commands:
 
 ```bash

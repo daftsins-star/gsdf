@@ -1,0 +1,16 @@
+## GSDF
+
+Planning state lives in `.planning/` — the same layout get-shit-done and gsd-core use.
+Read it with the CLI, not by opening files: `.claude/bin/gsdf` (or `gsdf` on PATH).
+`gsdf next` / `state` / `phase list` / `context N` / `tryit N` answer where things stand;
+they never write. The filesystem is the source of truth — STATE.md and ROADMAP.md are for
+humans and are read tolerantly.
+
+After `/gsdf:execute`, the session is in **iterate mode**: edit files directly, no plans and
+no subagents, run the smallest verify from `config.json` that proves the change, and log each
+accepted change with `gsdf iter log N "<want> → <did> [files]"`. Rules the user states
+("always…", "from now on…") get logged with a `DECISION:` prefix. No commits during iterate.
+
+**"approved" ends it** — that runs `/gsdf:approve`: verify, one commit
+`feat(NN): approve phase NN — <k> iterations`, then advance. Per-task commits during execute
+are `type(NN-MM): task name`.
