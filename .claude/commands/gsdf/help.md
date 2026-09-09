@@ -1,5 +1,5 @@
 ---
-description: The GSDF loop and its 9 commands
+description: The GSDF loop and its 11 commands
 effort: low
 allowed-tools: [Bash]
 ---
@@ -20,6 +20,8 @@ GSDF — Get Shit Done Fast
   /gsdf:approve [N]     Verify, one commit, advance the phase.               0 spawns.
   /gsdf:quick "<task>"  One-off work outside the current phase.              1 spawn.
   /gsdf:progress        Where am I. --next runs the next step.               0 spawns.
+  /gsdf:pause [N]       Write a handoff and stop. Resume in a fresh session. 0 spawns.
+  /gsdf:resume [N]      Restore a paused session from its handoff.           0 spawns.
   /gsdf:help            This.
 
 Iterate mode is where the time goes, and it costs nothing. After execute, just say what you

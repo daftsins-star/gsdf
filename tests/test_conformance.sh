@@ -21,13 +21,13 @@ done
 echo "== model / effort frontmatter =="
 is "no model: on agents" "$(grep -c '^model:' $A/gsdf-*.md | grep -v ':0' | wc -l | tr -d ' ')" "0"
 is "no effort: max anywhere" "$(grep -rc 'effort: max' $C $A 2>/dev/null | grep -v ':0' | wc -l | tr -d ' ')" "0"
-is "effort: low on progress/help/approve" "$(grep -l '^effort: low' $C/*.md | xargs -n1 basename | sort | tr '\n' ' ')" "approve.md help.md progress.md "
+is "effort: low on the cheap commands" "$(grep -l '^effort: low' $C/*.md | xargs -n1 basename | sort | tr '\n' ' ')" "approve.md help.md pause.md progress.md resume.md "
 
 echo "== size budgets =="
 lt "gsdf-executor.md lines" "$(wc -l < $A/gsdf-executor.md | tr -d ' ')" 60
 lt "gsdf-planner.md lines"  "$(wc -l < $A/gsdf-planner.md | tr -d ' ')" 120
 for f in $C/*.md; do lt "$(basename $f) lines" "$(wc -l < $f | tr -d ' ')" 120; done
-is "command count" "$(ls $C/*.md | wc -l | tr -d ' ')" "9"
+is "command count" "$(ls $C/*.md | wc -l | tr -d ' ')" "11"
 is "agent count" "$(ls $A/gsdf-*.md | wc -l | tr -d ' ')" "2"
 D=$(python3 -c "
 import glob,re
@@ -151,7 +151,7 @@ diff <(grep -oE "/gsdf:[a-z-]+" $C/help.md | sed 's|/gsdf:||' | sort -u) \
      <(ls $C/*.md | xargs -n1 basename | sed 's/.md//' | sort -u) >/dev/null \
   && ok "help lists exactly the commands that exist" || bad "help command list" "drifted from $C/"
 # every command help claims takes 0 spawns must actually take 0
-for c in discuss iterate approve progress help; do
+for c in discuss iterate approve progress help pause resume; do
   grep -qE "^  /gsdf:$c.*0 spawns" $C/help.md || continue
   is "help's '0 spawns' claim for $c" "$(grep -icE 'spawn[^.]{0,40}(gsdf-planner|gsdf-executor)' $C/$c.md)" "0"
 done
