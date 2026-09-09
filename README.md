@@ -94,7 +94,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~425 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~440 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out.
 
 ```bash
@@ -139,6 +139,22 @@ so you can run both.
 
 ## Benchmark
 
+A full phase, run end to end on a real JUCE plugin project (`/gsdf:new-project` through
+`approved`), headless on an M-series Mac:
+
+| Step | Wall clock | Subagents |
+|---|---|---|
+| `/gsdf:new-project --auto @spec.md` | 4m 38s | 1 |
+| `/gsdf:plan 1 --auto` | 9m 02s (incl. live web research on JUCE) | 1 |
+| `/gsdf:execute 1` | 17m 13s (dominated by cloning and compiling JUCE) | 1 per plan |
+| `/gsdf:iterate 1` re-entry after `/clear` | 8s | 0 |
+| One iteration ("gain default should be -6 dB") | **27s** | **0** |
+| One iteration that turned out to be a rule | **36s** | **0** |
+| `approved` | 2m 02s | 0 |
+
+The iteration numbers are the point. A change, its verify, and its log entry cost half a minute
+and no cold-start context — that is the loop you spend most of your time in.
+
 Measured on the test fixtures:
 
 | | |
@@ -171,8 +187,8 @@ procedure is written out in `GSDF-SPEC.md` §12; run it and the numbers go here.
 ## Tests
 
 ```bash
-bash tests/test_cli.sh          # 69 checks — CLI behaviour against 7 fixture projects
-bash tests/test_conformance.sh  # 61 checks — spawn, size and token budgets; the git protocol
+bash tests/test_cli.sh          # 76 checks — CLI behaviour against 7 fixture projects
+bash tests/test_conformance.sh  # 76 checks — spawn, size and token budgets; the git protocol
 ```
 
 `tests/fixtures/` holds two `.planning/` trees built by hand from the real templates of both
