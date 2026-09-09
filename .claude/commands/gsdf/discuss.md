@@ -31,7 +31,13 @@ API, performance strategy. Those are the planner's, and asking makes the user do
 
 **3. One `AskUserQuestion` per gray area**, 2–4 concrete options each. Concrete means values:
 "-60..+12 dB, default 0" and "0..100%, default 25", not "wider range" and "narrower range".
-The user can always type their own answer instead.
+
+**Options are a starting point, never a menu.** The user can always type their own answer, and
+you must make that obvious rather than assume they know — say so in the question text, and treat
+a typed answer as the expected case, not an exception. The point of the options is to show you
+have thought about it and to give them something concrete to react to; it is not to constrain
+them to three things you happened to think of. If they type something none of your options
+covered, that is the question doing its job.
 
 **Eight questions is the hard ceiling** across the whole session. Fewer is better. If an answer
 opens a genuinely important follow-up, ask it and drop one of the others.
