@@ -76,6 +76,17 @@ for f in plan new-project discuss; do
   has "$f uses --only not add -A" "$(cat $C/$f.md)" "git commit --only"
 done
 
+echo "== the README does not drift from the code =="
+CLI=$(wc -l < bin/gsdf | tr -d ' ')
+DOC=$(grep -oE '~[0-9]+ lines of stdlib Python' README.md | grep -oE '[0-9]+')
+[ "$DOC" -ge $((CLI - 30)) ] && [ "$DOC" -le $((CLI + 30)) ] && ok "README CLI line count is current ($DOC vs $CLI)" \
+  || bad "README CLI line count" "says ~$DOC, actual $CLI"
+for s in $(bin/gsdf help | tail -1 | sed 's/Subcommands: //'); do
+  case "$s" in init|adopt|state|plans|quick) ;; *)
+    has "README documents 'gsdf $s'" "$(cat README.md)" "gsdf $s" ;;
+  esac
+done
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 
