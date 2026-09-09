@@ -109,6 +109,34 @@ gsdf conflicts 2         # exits 1 if two plans in one wave write the same file
 
 Every read subcommand is pure — the test suite asserts `git status` is clean after all of them.
 
+## How it compares
+
+Measured, not asserted — both upstreams cloned and counted on the same day, and the context
+figure taken from the same real project (a JUCE gain plugin scaffolded by `/gsdf:new-project`):
+
+| | get-shit-done | gsd-core | GSDF |
+|---|---|---|---|
+| Commands | 29 | 72 | **9** |
+| Agents | 12 | 64 | **2** |
+| Lines of command + agent markdown | 16,423 | 26,785 | **728** |
+| Description text loaded every turn | 1,880 chars | 5,349 chars | **405 chars** |
+| Context handed to the planner | ~3,572 tokens<sup>†</sup> | ~3,572 tokens<sup>†</sup> | **978 tokens** |
+| Subagents per 2-plan phase | 6–8 | 6–10 | **3** |
+| Subagents during review/iteration | 1+ per fix | 1+ per fix | **0** |
+
+<sup>†</sup> Both read PROJECT.md + ROADMAP.md + STATE.md + REQUIREMENTS.md (+ prior SUMMARYs) to
+plan. `gsdf context N` selects the phase's slice of exactly that material. The gap widens as a
+project grows: GSDF caps every section, the read-everything pattern accumulates.
+
+The point of the smaller numbers isn't minimalism. It's that a cold subagent spend and a
+per-turn description tax are paid before any work happens, and the review loop — where the real
+time goes — costs GSDF nothing at all.
+
+What the other two have that GSDF deliberately doesn't: cross-AI review, worktrees, security
+gates, UI pillars, codebase intel graphs, debug sessions, workstreams, autonomous mode. If you
+want those, use gsd-core — it's a bigger system on purpose, and GSDF reads the same `.planning/`
+so you can run both.
+
 ## Benchmark
 
 Measured on the test fixtures:
