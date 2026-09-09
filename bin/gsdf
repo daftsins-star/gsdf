@@ -97,7 +97,12 @@ def status_of(pdir, prefix):
     if f("UAT").exists() and uat_passed(read(f("UAT"))): return "complete"
     if f("VERIFICATION").exists() and re.search(r"passed|PASS", read(f("VERIFICATION"))): return "complete"
     pl = plans_of(pdir, prefix)
-    return ("iterate" if all(p["has_summary"] for p in pl) else "execute") if pl else "plan"
+    if not pl: return "plan"
+    # A blocked or partial summary is not a finished plan. Counting it as one makes a phase
+    # that failed to build look executed, and sends the user into iterate mode on work that
+    # does not exist.
+    if any(x["status"] in ("blocked", "partial") for x in pl if x["has_summary"]): return "blocked"
+    return "iterate" if all(x["has_summary"] for x in pl) else "execute"
 
 def phases(pl):
     rm, dp, out = roadmap_phases(pl), dir_phases(pl), []

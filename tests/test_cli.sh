@@ -34,6 +34,21 @@ rm -rf "$E"; mkdir -p "$E/.planning/phases/02-alpha" "$E/.planning/phases/02-bet
 has "duplicate phase number warns" "$("$GSDF" phase list 2>&1)" "claimed by both 02-alpha and 02-beta"
 has "duplicate resolves deterministically" "$("$GSDF" phase list 2>/dev/null)" "| 02 | alpha |"
 
+echo "== 1c. a blocked plan is not a finished one =="
+sandbox native-execute
+# give 01-02 a summary that reports blocked, as a stopped executor writes
+printf -- '---\nphase: 01\nplan: 02\nstatus: blocked\ncommits: []\n---\n# Summary\n## Delivered\nnothing\n' \
+  > .planning/phases/01-drive/01-02-SUMMARY.md
+is "blocked phase is not iterate" "$("$GSDF" next)" "blocked 01"
+has "phase list shows blocked" "$("$GSDF" phase list)" "| 01 | drive | blocked |"
+has "phase current shows blocked" "$("$GSDF" phase current)" "blocked"
+# a partial summary is equally not done
+sed -i.bak 's/^status: blocked/status: partial/' .planning/phases/01-drive/01-02-SUMMARY.md && rm -f .planning/phases/01-drive/*.bak
+is "partial phase is not iterate either" "$("$GSDF" next)" "blocked 01"
+# and a clean summary still reaches iterate
+sed -i.bak 's/^status: partial/status: complete/' .planning/phases/01-drive/01-02-SUMMARY.md && rm -f .planning/phases/01-drive/*.bak
+is "complete summaries reach iterate" "$("$GSDF" next)" "iterate 01"
+
 echo "== 2. spec 4a: pre-existing GSD projects =="
 cd "$FIX/original-midphase"
 is "original: next"             "$("$GSDF" next)"            "execute 02"

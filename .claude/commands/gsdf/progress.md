@@ -33,6 +33,7 @@ reading those files directly is how a session's context gets eaten before any wo
 | `plan NN` | ``Next: `/gsdf:discuss NN` (optional) then `/gsdf:plan NN`.`` |
 | `execute NN` | ``Next: `/gsdf:execute NN`.`` |
 | `iterate NN` | ``Phase NN is executed and waiting on you. `/gsdf:iterate NN`.`` |
+| `blocked NN` | Name the blocked plan and its task from `gsdf plans NN`, then: ``Phase NN is blocked — plan NN-MM stopped. A blocked plan usually means the plan was wrong: `/gsdf:plan NN` to re-plan it.`` Never route a blocked phase into iterate mode. |
 | `milestone-done` | ``Every phase is complete. Run `/gsdf:progress --next` to close the milestone.`` |
 
 **3. With `--next`, run it** — invoke the matching command's behaviour directly, in this session.

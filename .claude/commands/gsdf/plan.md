@@ -15,7 +15,9 @@ executor gets a plan and the files it names, and nothing else.
 
 **0. Confirm.** `gsdf next`. If the phase already has plans (`gsdf plans N` is non-empty) and
 the user didn't ask to re-plan, **stop** and say so — replanning over a phase that's
-mid-execute strands the summaries that already exist.
+mid-execute strands the summaries that already exist. The exception is a **blocked** phase:
+re-planning is the documented fix, so go ahead, and read the blocked plan's SUMMARY first so
+the new plan doesn't repeat what stopped it.
 
 **1. Brief.** N defaults to the current phase (`gsdf next`).
 

@@ -104,6 +104,11 @@ echo "== discuss never presents its options as the only choices =="
 has "discuss says options are a starting point" "$(cat $C/discuss.md)" "never a menu"
 has "discuss makes the typed answer obvious" "$(cat $C/discuss.md)" "must make that obvious"
 
+echo "== a blocked phase is never routed to iterate =="
+has "progress handles blocked" "$(cat $C/progress.md)" "blocked NN"
+has "progress refuses to iterate a blocked phase" "$(cat $C/progress.md)" "Never route a blocked phase"
+has "plan allows re-planning a blocked phase" "$(cat $C/plan.md)" "exception is a **blocked** phase"
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 
