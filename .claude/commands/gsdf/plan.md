@@ -34,14 +34,15 @@ the new plan doesn't repeat what stopped it.
 Do not add your own summary of the project on top. The context command is the briefing; padding
 it is how a planner ends up with 30k tokens of preamble before it reads a line of code.
 
-**3. Check what came back** (`gsdf plans N`, and read the frontmatter only):
+**3. Check what came back.** Two commands, not a reading exercise:
 
-| Check | If it fails |
-|---|---|
-| Every plan file listed actually exists | re-spawn |
-| `estimated_tokens < 120000` on every plan | re-spawn: "split plan MM" |
-| Every `<verify>` has a `<fails_when>` | re-spawn: "add failure signals" |
-| `.claude/bin/gsdf conflicts N` exits 0 | re-spawn: "serialise MM and MM" |
+```bash
+.claude/bin/gsdf lint N        # estimated_tokens, requirements, verify/fails_when, done, Try it
+.claude/bin/gsdf conflicts N   # no two plans in one wave write the same file
+```
+
+Either exiting non-zero means the plan is not executable yet. They print the plan id and the
+problem; pass that text straight back to the planner as the re-spawn instruction.
 
 **One retry, maximum.** Re-spawn once with the specific instruction. If it comes back wrong
 again, show what's wrong and stop — don't hand a broken plan to an executor and don't fix the

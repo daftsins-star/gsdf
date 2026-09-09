@@ -105,6 +105,7 @@ gsdf tryit 2             # how to see the work, and what needs a human eye
 gsdf iter log 2 "..."    # one line per accepted change
 gsdf waves 2             # [["01"], ["02"]]
 gsdf conflicts 2         # exits 1 if two plans in one wave write the same file
+gsdf lint 2              # exits 1 if a plan is not executable, naming the plan and why
 ```
 
 Every read subcommand is pure — the test suite asserts `git status` is clean after all of them.
@@ -216,7 +217,22 @@ bash tests/test_conformance.sh  # 76 checks — spawn, size and token budgets; t
 upstream projects — one mid-phase under the original GSD, one under gsd-core — plus one fixture
 per state `gsdf next` can return.
 
+## Working on GSDF itself
+
+GSDF can plan and execute its own changes, and self-hosting has one trap no other project has:
+`/gsdf:*` runs from `~/.claude/`, not from your checkout, so an edit here does nothing until you
+run `./install.sh --global`. See **[SELF-HOSTING.md](SELF-HOSTING.md)** for the loop, the budgets
+the test suite enforces, how to force a parallel or a blocked run, and which decisions are
+deliberate rather than accidental.
+
 ## Credits
+
+**GSDF was conceived and designed by [Daftsins](https://github.com/daftsins-star).** The idea —
+keep GSD's quality guarantees but stop paying a cold subagent for every small fix, and put the
+review loop back in the chat where it belongs — is theirs, as is the specification the system
+was built from (`GSDF-SPEC.md`): the nine commands, the two agents, the one-planner-per-phase
+spawn budget, the filesystem-as-truth rule that makes it drop into existing GSD projects, and
+iterate mode itself. The implementation was written by Claude against that spec.
 
 Descended from [get-shit-done](https://github.com/ludicrypt/get-shit-done) by Lex Christopherson
 and [gsd-core](https://github.com/open-gsd/gsd-core) by Open GSD, both MIT. No code is vendored

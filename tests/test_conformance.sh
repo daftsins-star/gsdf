@@ -140,6 +140,12 @@ echo "== closing a milestone archives its roadmap too =="
 has "progress moves ROADMAP into the archive" "$(cat $C/progress.md)" "git mv .planning/ROADMAP.md"
 has "progress explains why" "$(cat $C/progress.md)" "re-plan a phase that shipped"
 
+echo "== plan gates its output with commands, not prose =="
+has "plan runs gsdf lint" "$(cat $C/plan.md)" "gsdf lint N"
+has "plan runs gsdf conflicts" "$(cat $C/plan.md)" "gsdf conflicts N"
+has "plan feeds the failure back to the planner" "$(cat $C/plan.md)" "re-spawn instruction"
+has "README documents 'gsdf lint'" "$(cat README.md)" "gsdf lint"
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 

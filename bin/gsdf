@@ -252,6 +252,28 @@ def cmd_conflicts(pl, p):
     if bad: sys.exit(1)
     print("no same-wave file conflicts in phase %s" % p["prefix"])
 
+def cmd_lint(pl, p):
+    """The gates /gsdf:plan applies before an executor ever sees a plan. Prose checks get
+    skipped; a command does not. Exit 1 and name the plan and the problem."""
+    bad = []
+    for x in plans_of(p["dir"], p["prefix"]):
+        f, txt = Path(x["file"]), read(x["file"])
+        fm, pid = frontmatter(txt), "%s-%s" % (p["prefix"], x["id"])
+        try: est = int(re.sub(r"\D", "", fm.get("estimated_tokens", "")) or 0)
+        except ValueError: est = 0
+        if not est: bad.append("%s: no estimated_tokens" % pid)
+        elif est >= 120000: bad.append("%s: estimated_tokens %d exceeds the 120000 executor budget" % (pid, est))
+        if not as_list(fm.get("requirements")): bad.append("%s: requirements is empty" % pid)
+        v, fw = len(re.findall(r"<verify>", txt)), len(re.findall(r"<fails_when>", txt))
+        if v and fw < v: bad.append("%s: %d <verify> but only %d <fails_when> — a command with no expressible failure mode is not an acceptance test" % (pid, v, fw))
+        if not v: bad.append("%s: no <verify> in any task" % pid)
+        if len(re.findall(r"<task", txt)) > len(re.findall(r"<done>", txt)):
+            bad.append("%s: a task has no <done>" % pid)
+        if not section(txt, "Try it"): bad.append("%s: no '## Try it' — the user cannot see the result" % pid)
+    for b in bad: print(b)
+    if bad: sys.exit(1)
+    print("phase %s: %d plan(s) pass all gates" % (p["prefix"], len(plans_of(p["dir"], p["prefix"]))))
+
 def cmd_tryit(pl, p):
     files = sorted(p["dir"].glob(p["prefix"] + "-*-SUMMARY.md")) if p["dir"] else []
     for f in files:
@@ -392,7 +414,7 @@ def main(a):
     if c == "init": return cmd_init(a[1] if len(a) > 1 else die("usage: gsdf init <name>"))
     if c in ("-V", "--version", "version"):
         return print("gsdf %s  (%s)" % (VERSION, Path(__file__).resolve()))
-    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt state next phase plans waves conflicts context tryit iter quick")
+    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt state next phase plans waves conflicts lint context tryit iter quick")
     pl = planning()
     if c == "next": return cmd_next(pl)
     pl = pl or need()
@@ -434,6 +456,7 @@ def main(a):
     if c == "plans": return print(json.dumps([{k: v for k, v in x.items() if k != "has_depends"} for x in plans_of(p["dir"], p["prefix"])], indent=2))
     if c == "waves": return print(json.dumps(waves(plans_of(p["dir"], p["prefix"]))))
     if c == "conflicts": return cmd_conflicts(pl, p)
+    if c == "lint": return cmd_lint(pl, p)
     if c == "context": return cmd_context(pl, p)
     if c == "tryit": return cmd_tryit(pl, p)
     die("unknown subcommand: %s (try `gsdf help`)" % c)

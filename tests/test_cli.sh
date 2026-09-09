@@ -112,6 +112,28 @@ has "second requirement complete too" "$CTX" "keeps its alias floor below -80 dB
 hasnt "out-of-scope bullet mentioning a REQ id is excluded" "$CTX" "not a loudness normaliser"
 hasnt "unrelated requirement excluded" "$CTX" "REQ-04"
 
+echo "== 5d. gsdf lint is the plan gate, as a command not a prose instruction =="
+cd "$FIX/native-execute"
+is "a good phase passes" "$("$GSDF" lint 1)" "phase 01: 2 plan(s) pass all gates"
+sandbox native-execute
+P=.planning/phases/01-drive/01-02-PLAN.md
+sed -i.bak 's|^ *<fails_when>.*$||' $P && rm -f .planning/phases/01-drive/*.bak
+"$GSDF" lint 1 >/dev/null 2>&1; is "missing fails_when exits non-zero" "$?" "1"
+has "and says which plan and why" "$("$GSDF" lint 1 2>&1)" "not an acceptance test"
+sandbox native-execute
+sed -i.bak 's/^estimated_tokens: 52000/estimated_tokens: 250000/' $P && rm -f .planning/phases/01-drive/*.bak
+has "oversized plan is caught" "$("$GSDF" lint 1 2>&1)" "exceeds the 120000 executor budget"
+sandbox native-execute
+sed -i.bak 's/^requirements: .*/requirements: []/' $P && rm -f .planning/phases/01-drive/*.bak
+has "empty requirements is caught" "$("$GSDF" lint 1 2>&1)" "requirements is empty"
+sandbox native-execute
+python3 - "$PWD/$P" <<'PY'
+import re,sys,pathlib
+p=pathlib.Path(sys.argv[1]); t=p.read_text()
+p.write_text(re.sub(r"^## Try it.*", "", t, flags=re.S|re.M))
+PY
+has "missing Try it is caught" "$("$GSDF" lint 1 2>&1)" "the user cannot see the result"
+
 echo "== 6. state read/write tolerance =="
 sandbox original-midphase
 has "state prints old Current Position" "$("$GSDF" state)" "Phase: 2 of 4 (Gain stage)"
