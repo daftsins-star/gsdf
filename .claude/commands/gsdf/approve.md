@@ -28,7 +28,25 @@ never be enough to fire it.
 If any fails: show the failing output, say **"Not approved — <what broke>. Still in iterate
 mode."**, and stop. Do not commit. Do not advance. Fixing it is the next iteration.
 
-**2. Commit.** Only if the tree is dirty. `git add -A` stages *everything*, so look first:
+**2. Fold the log in.** `gsdf iter list N`, then append those lines under the `## Iterations`
+heading of **every** `NN-MM-SUMMARY.md` in the phase. If a summary has no such heading (older
+GSD summaries don't), add it at the end.
+
+**3. Promote decisions.** Every logged line beginning `DECISION:` becomes
+`gsdf state note "<the line without the prefix>"`. These outlive the phase — that's the point.
+
+**4. Advance.**
+
+```bash
+.claude/bin/gsdf phase advance N    # stamps NN approved and flips its ROADMAP marker
+                                    # ALWAYS pass N — without it, advance acts on whatever
+                                    # phase is current, which is no longer this one
+.claude/bin/gsdf state set status idle
+.claude/bin/gsdf state position "Phase NN approved, <k> iterations. Next: phase <NN+1>."
+```
+
+**5. Commit — once, last.** Everything above writes files, so committing before them would
+leave the phase's own bookkeeping dirty. `git add -A` stages *everything*, so look first:
 
 ```bash
 git status --porcelain | wc -l
@@ -46,25 +64,8 @@ git add -A
 git commit -m "feat(NN): approve phase NN — <k> iterations"
 ```
 
-`k` is `gsdf iter count N`. This is the one commit for the whole iterate session — that is the
-design, not an oversight.
-
-**3. Fold the log in.** `gsdf iter list N`, then append those lines under the `## Iterations`
-heading of **every** `NN-MM-SUMMARY.md` in the phase. If a summary has no such heading (older
-GSD summaries don't), add it at the end.
-
-**4. Promote decisions.** Every logged line beginning `DECISION:` becomes
-`gsdf state note "<the line without the prefix>"`. These outlive the phase — that's the point.
-
-**5. Advance.**
-
-```bash
-.claude/bin/gsdf phase advance N    # stamps NN approved and flips its ROADMAP marker
-                                    # ALWAYS pass N — without it, advance acts on whatever
-                                    # phase is current, which is no longer this one
-.claude/bin/gsdf state set status idle
-.claude/bin/gsdf state position "Phase NN approved, <k> iterations. Next: phase <NN+1>."
-```
+`k` is `gsdf iter count N`, read before step 4. This is the one commit for the whole iterate
+session, and it must leave the tree clean — verify with `git status --porcelain` after.
 
 **6. Report — four lines, no more.**
 

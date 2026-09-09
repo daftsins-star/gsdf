@@ -109,6 +109,33 @@ has "progress handles blocked" "$(cat $C/progress.md)" "blocked NN"
 has "progress refuses to iterate a blocked phase" "$(cat $C/progress.md)" "Never route a blocked phase"
 has "plan allows re-planning a blocked phase" "$(cat $C/plan.md)" "exception is a **blocked** phase"
 
+echo "== approve commits last, so its own bookkeeping is in the commit =="
+python3 - <<'PY'
+import re, sys
+t = open(".claude/commands/gsdf/approve.md").read()
+order = re.findall(r"^\*\*(\d)\. ([^.*]+)", t, re.M)
+nums = [int(n) for n, _ in order]
+labels = {int(n): l.strip().lower() for n, l in order}
+commit = next((n for n, l in labels.items() if l.startswith("commit")), None)
+advance = next((n for n, l in labels.items() if l.startswith("advance")), None)
+fold = next((n for n, l in labels.items() if l.startswith("fold")), None)
+ok = nums == sorted(nums) and commit and advance and fold and commit > advance and commit > fold
+print("PASS" if ok else "FAIL commit=%s advance=%s fold=%s order=%s" % (commit, advance, fold, nums))
+PY
+R=$(python3 - <<'PY'
+import re
+t = open(".claude/commands/gsdf/approve.md").read()
+order = re.findall(r"^\*\*(\d)\. ([^.*]+)", t, re.M)
+labels = {int(n): l.strip().lower() for n, l in order}
+c = next((n for n,l in labels.items() if l.startswith("commit")), 0)
+a = next((n for n,l in labels.items() if l.startswith("advance")), 0)
+f = next((n for n,l in labels.items() if l.startswith("fold")), 0)
+print("yes" if c and a and f and c > a and c > f else "no")
+PY
+)
+is "commit step comes after fold and advance" "$R" "yes"
+has "approve requires a clean tree afterwards" "$(cat $C/approve.md)" "must leave the tree clean"
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 
