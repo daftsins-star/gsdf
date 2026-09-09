@@ -16,7 +16,15 @@ if [ "$GLOBAL" = 0 ] && [ -d "$HOME/.claude/commands/gsdf" ]; then
   echo "         User-level commands shadow project-level ones, so /gsdf:* will run the"
   echo "         GLOBAL copy, not this one. Re-run './install.sh --global' to update that"
   echo "         instead, or remove ~/.claude/commands/gsdf to use per-project installs."
+  echo "         Those commands call 'gsdf' on PATH, so the global CLI is what actually runs."
   echo
+fi
+
+# Refresh a project-local CLI so it can never be older than the global one.
+if [ "$GLOBAL" = 1 ] && [ -x "$TARGET/.claude/bin/gsdf" ] \
+   && ! cmp -s "$SRC/bin/gsdf" "$TARGET/.claude/bin/gsdf"; then
+  cp "$SRC/bin/gsdf" "$TARGET/.claude/bin/gsdf"; chmod +x "$TARGET/.claude/bin/gsdf"
+  echo "  refreshed a stale project-local CLI at $TARGET/.claude/bin/gsdf"
 fi
 
 echo "Installing GSDF → $DEST"

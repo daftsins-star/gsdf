@@ -1,7 +1,8 @@
 ## GSDF
 
 Planning state lives in `.planning/` — the same layout get-shit-done and gsd-core use.
-Read it with the CLI, not by opening files: `.claude/bin/gsdf` (or `gsdf` on PATH).
+Read it with the CLI, not by opening files: `gsdf` on PATH, or `.claude/bin/gsdf` if PATH
+has none. Prefer PATH — a project-local copy can be older. `gsdf --version` prints which.
 `gsdf next` / `state` / `phase list` / `context N` / `tryit N` answer where things stand;
 they never write. The filesystem is the source of truth — STATE.md and ROADMAP.md are for
 humans and are read tolerantly.

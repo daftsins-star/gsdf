@@ -91,6 +91,11 @@ echo "== execute must not fabricate an iteration to create the log =="
 is "execute uses iter start" "$(grep -c 'gsdf iter start' $C/execute.md)" "1"
 is "execute does not log a placeholder" "$(grep -c 'iter log N \"phase executed\"' $C/execute.md)" "0"
 
+echo "== CLI version skew is diagnosable and PATH wins =="
+has "gsdf reports its version and path" "$(bin/gsdf --version)" "gsdf 1."
+has "CLAUDE block prefers PATH over a project-local copy" "$(cat .claude/CLAUDE.gsdf.md)" "Prefer PATH"
+has "install.sh refreshes a stale project CLI" "$(cat install.sh)" "refreshed a stale project-local CLI"
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 
