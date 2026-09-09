@@ -55,7 +55,13 @@ def dir_phases(pl):
     out = {}
     for d in sorted((pl / "phases").glob("*")) if (pl / "phases").is_dir() else []:
         m = PDIR_RE.match(d.name)
-        if d.is_dir() and m: out[norm(m.group(1))] = (m.group(1), m.group(2), d)
+        if not (d.is_dir() and m): continue
+        n = norm(m.group(1))
+        if n in out:   # never silently drop a phase directory: its plans would vanish
+            sys.stderr.write("warning: phase %s claimed by both %s and %s — using %s\n"
+                             % (n, out[n][2].name, d.name, out[n][2].name))
+            continue
+        out[n] = (m.group(1), m.group(2), d)
     return out
 
 def plans_of(pdir, prefix):
@@ -331,7 +337,13 @@ def cmd_init(name):
 # ---------- output commands ----------
 def cmd_next(pl):
     if not pl: return print("new-project")
-    p = current(pl)
+    ph = phases(pl)
+    if not ph:
+        # No roadmap phases and no phase directories. That is an unstarted or unparseable
+        # project, never a finished milestone — saying milestone-done here would invite
+        # progress --next to archive and tag a project that has done nothing.
+        return print("new-project")
+    p = next((x for x in ph if x["status"] != "complete"), None)
     print("milestone-done" if not p else "%s %s" % (p["status"], p["prefix"]))
 def cmd_list(pl):
     print("| NN | slug | status | plans | done | iterations |\n|---|---|---|---|---|---|")

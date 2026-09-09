@@ -22,6 +22,18 @@ cd "$FIX/native-execute";       is "next: execute"           "$("$GSDF" next)" "
 cd "$FIX/native-iterate";       is "next: iterate"           "$("$GSDF" next)" "iterate 01"
 cd "$FIX/native-milestone-done";is "next: milestone-done"    "$("$GSDF" next)" "milestone-done"
 
+echo "== 1b. degenerate trees never report a finished milestone =="
+E="$WORK/e"; rm -rf "$E"; mkdir -p "$E/.planning"; cd "$E"
+is "empty .planning is not milestone-done" "$("$GSDF" next)" "new-project"
+printf '# Roadmap\n\nProse with no parseable phase headings.\n' > .planning/ROADMAP.md
+is "unparseable roadmap is not milestone-done" "$("$GSDF" next)" "new-project"
+rm -rf "$E"; mkdir -p "$E/.planning/phases/01-thing"; cd "$E"
+printf -- '---\nphase: 01\nplan: 01\n---\n# p\n' > .planning/phases/01-thing/01-01-PLAN.md
+is "phases with no ROADMAP still work" "$("$GSDF" next)" "execute 01"
+rm -rf "$E"; mkdir -p "$E/.planning/phases/02-alpha" "$E/.planning/phases/02-beta"; cd "$E"
+has "duplicate phase number warns" "$("$GSDF" phase list 2>&1)" "claimed by both 02-alpha and 02-beta"
+has "duplicate resolves deterministically" "$("$GSDF" phase list 2>/dev/null)" "| 02 | alpha |"
+
 echo "== 2. spec 4a: pre-existing GSD projects =="
 cd "$FIX/original-midphase"
 is "original: next"             "$("$GSDF" next)"            "execute 02"
