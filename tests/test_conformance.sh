@@ -70,6 +70,12 @@ done
 has "approve refuses build output" "$(cat $C/approve.md)" "node_modules|dist|target"
 has "execute checks wave conflicts" "$(cat $C/execute.md)" "gsdf conflicts N"
 
+echo "== planning artifacts get versioned, safely =="
+for f in plan new-project discuss; do
+  has "$f commits its artifacts" "$(cat $C/$f.md)" "commit_docs"
+  has "$f uses --only not add -A" "$(cat $C/$f.md)" "git commit --only"
+done
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 

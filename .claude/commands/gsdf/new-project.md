@@ -63,6 +63,16 @@ same batch as step 3 if you can.
 **6. Present the roadmap** — phase names, goals, REQ coverage — and ask **one** question:
 accept, or say what to change. On a change, re-spawn the planner once with the correction.
 
+**Commit the planning artifacts.** Both GSDs version `.planning/` as they go, and a plan that
+only exists in the working tree is one `git clean` from gone. Unless `config.commit_docs` is
+`false` or `.planning/` is gitignored (`git check-ignore -q .planning`):
+
+```bash
+git add -N .planning/ && git commit --only .planning/ -m "docs(planning): initialise project"
+```
+
+`--only`, not `git add -A` — an executor may be committing in the same repo.
+
 Then: `Next: /gsdf:discuss 1` (optional) `or /gsdf:plan 1`.
 
 </process>

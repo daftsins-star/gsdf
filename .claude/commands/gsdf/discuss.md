@@ -47,6 +47,16 @@ Claude on purpose).
 
 **5.** Anything durable — a rule that outlives this phase — also goes to `gsdf state note "<it>"`.
 
+**Commit the planning artifacts.** Both GSDs version `.planning/` as they go, and a plan that
+only exists in the working tree is one `git clean` from gone. Unless `config.commit_docs` is
+`false` or `.planning/` is gitignored (`git check-ignore -q .planning`):
+
+```bash
+git add -N .planning/phases/NN-slug/NN-CONTEXT.md && git commit --only .planning/phases/NN-slug/NN-CONTEXT.md -m "docs(NN): phase NN context"
+```
+
+`--only`, not `git add -A` — an executor may be committing in the same repo.
+
 Then: `Next: /gsdf:plan N`.
 
 </process>

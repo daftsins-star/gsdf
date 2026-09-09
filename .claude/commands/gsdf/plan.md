@@ -52,6 +52,16 @@ Phase NN — <n> plans, waves <gsdf waves N>
 <the planner's 5 lines>
 ```
 
+**Commit the planning artifacts.** Both GSDs version `.planning/` as they go, and a plan that
+only exists in the working tree is one `git clean` from gone. Unless `config.commit_docs` is
+`false` or `.planning/` is gitignored (`git check-ignore -q .planning`):
+
+```bash
+git add -N .planning/phases/NN-slug/ && git commit --only .planning/phases/NN-slug/ -m "docs(NN): plan phase NN"
+```
+
+`--only`, not `git add -A` — an executor may be committing in the same repo.
+
 Without `--auto`, one `AskUserQuestion`: proceed to execute, adjust, or stop. With `--auto`,
 say `Next: /gsdf:execute N` and stop.
 
