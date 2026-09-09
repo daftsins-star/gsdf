@@ -17,6 +17,11 @@ iteration log into the record, and move to the next phase.
 Also triggered without the command — when the user says "approved", "approve", "looks good,
 done", or similar while in iterate mode.
 
+**0. Confirm that's what this is.** Run `.claude/bin/gsdf next` first. If it does not say
+`iterate NN`, this is not an approval — say what state the phase is actually in and **stop**.
+This command commits and advances a phase; "approved" said about something else entirely must
+never be enough to fire it.
+
 **1. Verify.** Read the commands from `config.json` and run, in order:
 `verify.build`, then `verify.test`, and `verify.ui` if this phase touched `config.ui_dir`.
 
