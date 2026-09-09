@@ -195,6 +195,18 @@ is "catastrophe: edit is gone" "$(cat knob.css)" "original"
 git stash apply "$(git for-each-ref refs/gsdf/ --format='%(refname)' | head -1)" >/dev/null 2>&1
 is "recovered from the snapshot" "$(cat knob.css)" "edited to 44px"
 
+echo "== 7c. concurrent writes do not lose updates =="
+sandbox native-iterate
+for i in 1 2 3 4 5 6 7 8; do "$GSDF" state defer "deferred item $i" & done; wait
+is "8 parallel state defer calls all land" "$(grep -c 'deferred item' .planning/STATE.md | tr -d ' ')" "8"
+sandbox native-iterate
+for i in 1 2 3 4 5 6 7 8; do "$GSDF" state note "decision $i" & done; wait
+is "8 parallel state note calls all land" "$(grep -c 'decision ' .planning/STATE.md | tr -d ' ')" "8"
+sandbox native-iterate
+for i in 1 2 3 4 5 6 7 8; do "$GSDF" iter log 1 "change $i" & done; wait
+is "8 parallel iter log calls all land" "$("$GSDF" iter count 1)" "8"
+is "no lock file left in the repo" "$(find .planning -name '*.lock' | wc -l | tr -d ' ')" "0"
+
 echo "== 8. phase advance flips markers in the format it finds =="
 sandbox original-midphase
 "$GSDF" phase advance >/dev/null

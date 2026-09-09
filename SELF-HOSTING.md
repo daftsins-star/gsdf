@@ -142,5 +142,8 @@ Do not "fix" these without a reason that survives the argument:
 - **Iterate mode makes no commits.** That is the user's choice, and the snapshots cover the risk.
 - **`approve` commits last**, after folding the log in and advancing, so its own bookkeeping is
   inside its own commit.
+- **Every `.planning/` write takes an flock.** An orchestrator fires independent Bash calls in
+  parallel; six concurrent `state defer` calls landed three of six lines before this. The lock
+  lives in the system temp dir keyed by path, so nothing is added to the repo.
 - **`phase advance` takes an explicit N.** Defaulting to `current()` made approve mark the *next*
   phase complete, because the phase being approved was already complete by then.
