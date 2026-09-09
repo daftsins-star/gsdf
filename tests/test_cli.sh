@@ -23,7 +23,7 @@ cd "$FIX/native-iterate";       is "next: iterate"           "$("$GSDF" next)" "
 cd "$FIX/native-milestone-done";is "next: milestone-done"    "$("$GSDF" next)" "milestone-done"
 
 echo "== 1b. degenerate trees never report a finished milestone =="
-E="$WORK/e"; rm -rf "$E"; mkdir -p "$E/.planning"; cd "$E"
+E="$WORK/degen"; rm -rf "$E"; mkdir -p "$E/.planning"; cd "$E"
 is "empty .planning is not milestone-done" "$("$GSDF" next)" "new-project"
 printf '# Roadmap\n\nProse with no parseable phase headings.\n' > .planning/ROADMAP.md
 is "unparseable roadmap is not milestone-done" "$("$GSDF" next)" "new-project"
