@@ -14,8 +14,8 @@ executor gets a plan and the files it names, and nothing else.
 <process>
 
 **0. Confirm.** `gsdf next`. If the phase already has plans (`gsdf plans N` is non-empty) and
-the user didn't ask to re-plan, stop and say so — replanning over a phase that's mid-execute
-strands the summaries that already exist.
+the user didn't ask to re-plan, **stop** and say so — replanning over a phase that's
+mid-execute strands the summaries that already exist.
 
 **1. Brief.** N defaults to the current phase (`gsdf next`).
 

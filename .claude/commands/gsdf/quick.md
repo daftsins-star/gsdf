@@ -15,8 +15,8 @@ flag, a rename. One spawn, zero questions.
 
 <process>
 
-**0.** If `$ARGUMENTS` is empty, stop and ask what the task is. This command spawns a subagent
-that writes code and commits; it must never run on an inferred task.
+**0.** If `$ARGUMENTS` is empty, **stop** and ask what the task is. This command spawns a
+subagent that writes code and commits; it must never run on an inferred task.
 
 **1.** `.claude/bin/gsdf quick new "<slug>"` → prints the directory. Slug from the task, 2–4 words.
 
