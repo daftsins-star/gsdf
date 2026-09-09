@@ -1,2 +1,6 @@
 .DS_Store
 __pycache__/
+
+# GSDF self-hosts: this repo ships without a .planning/ so the tests can't depend on one,
+# but `gsdf init` here creates a local one (SELF-HOSTING.md). Keep it out of the package.
+.planning/
