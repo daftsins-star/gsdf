@@ -13,8 +13,13 @@ to the user and enter iterate mode.
 
 <process>
 
-**1. Schedule.** `gsdf waves N`. Skip any plan that already has a SUMMARY — it ran. `--wave W`
-runs only that wave.
+**0. Confirm this is the right move.** `gsdf next`. If it doesn't say `execute NN` and the user
+didn't name a phase explicitly, say what state the phase is in and **stop** — this command spawns
+subagents that write code and commit, so it must never fire on a guess.
+
+**1. Schedule.** `gsdf waves N`, then `gsdf conflicts N` — if that exits non-zero, two plans in a
+wave write the same file and running them in parallel would lose writes. Stop and re-plan.
+Skip any plan that already has a SUMMARY — it ran. `--wave W` runs only that wave.
 
 **2. Per wave: spawn one `gsdf-executor` per plan, all in a single message** so they run
 concurrently. Each gets one thing: the absolute path to its PLAN.md. Nothing else — the plan is

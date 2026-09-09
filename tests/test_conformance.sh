@@ -63,6 +63,13 @@ echo "== approve is guarded against a stray \"approved\" =="
 has "approve checks gsdf next first" "$(cat $C/approve.md)" "If it does not say"
 has "approve stops when not iterating" "$(cat $C/approve.md)" "**stop**"
 
+echo "== every destructive command guards against firing on a guess =="
+for f in approve execute plan quick; do
+  has "$f checks state before acting" "$(cat $C/$f.md)" "**stop**"
+done
+has "approve refuses build output" "$(cat $C/approve.md)" "node_modules|dist|target"
+has "execute checks wave conflicts" "$(cat $C/execute.md)" "gsdf conflicts N"
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 

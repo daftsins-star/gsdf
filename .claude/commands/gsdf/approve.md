@@ -28,7 +28,18 @@ never be enough to fire it.
 If any fails: show the failing output, say **"Not approved — <what broke>. Still in iterate
 mode."**, and stop. Do not commit. Do not advance. Fixing it is the next iteration.
 
-**2. Commit.** Only if the tree is dirty:
+**2. Commit.** Only if the tree is dirty. `git add -A` stages *everything*, so look first:
+
+```bash
+git status --porcelain | wc -l
+git status --porcelain | grep -aE '(^|/)(build|node_modules|dist|target|\.venv|DerivedData)/' | head
+```
+
+If the second command prints anything, **stop**: the project's `.gitignore` is missing entries
+and approving would commit build output. Say which paths, and offer to add them to `.gitignore`
+first. A JUCE `build/` directory is gigabytes — this is not a tidiness point.
+
+If more than ~60 files are staged, show the user the list and get a yes before continuing.
 
 ```bash
 git add -A
