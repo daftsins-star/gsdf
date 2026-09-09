@@ -169,6 +169,26 @@ Measured on the test fixtures:
 build script without simulating it, and a simulated number is worse than no number. The
 procedure is written out in `GSDF-SPEC.md` §12; run it and the numbers go here.
 
+## What has actually been run
+
+Every command has been executed for real against live projects, not just unit-tested:
+
+| Path | Evidence |
+|---|---|
+| `new-project` → `plan` → `execute` → iterate → `approved` | Full loop on a real JUCE plugin, from a spec file to an approved phase |
+| Parallel execution | Two executors, one wave — commits **interleaved** in the log, and not one mixed the other's files |
+| `discuss` | Run interactively; 6 questions, and it caught two genuine conflicts (greyscale bypass on a monochrome palette; a readout choice contradicting its own REQ) |
+| Blocked executor | Deliberately impossible dependency — executor refused to substitute, wrote `status: blocked`, made no task commit, orchestrator halted the wave |
+| `quick` | One spawn, zero questions, landed in `.planning/quick/001-…/`, left the phase state untouched |
+| `progress` on foreign trees | An original-GSD project → `execute 02`; a gsd-core project → `iterate 02`; zero questions, nothing renamed |
+| Milestone close | Tag written, phases + roadmap `git mv`'d into `milestones/v1.0/` — git recorded renames, nothing lost |
+| Conditional research | Phase introducing JUCE researched and wrote `01-RESEARCH.md`; phase with no new dependency correctly did not |
+| Iterate re-entry after `/clear` | Reprinted Try-it and the change log, resumed cleanly |
+
+Nine bugs were found this way that the test suite could not have caught, including `approve`
+marking the *wrong phase* complete, a blocked plan counting as a finished one, and `approve`
+committing before it had finished writing its own state.
+
 ## Limitations
 
 - **macOS and Linux.** `install.sh` is bash. The CLI itself is stdlib Python and portable, so a
@@ -177,12 +197,13 @@ procedure is written out in `GSDF-SPEC.md` §12; run it and the numbers go here.
   `~/.claude/commands/gsdf/` beats a fresh project copy. `install.sh` warns when it sees this.
 - **Permissions need a trusted workspace.** Claude Code ignores `permissions.allow` until you
   open the project interactively once and accept the trust dialog.
-- **`/gsdf:discuss` has not been executed end to end.** It is built on `AskUserQuestion`, which
-  needs a real person, so it cannot be exercised headlessly. Every other command has been.
-- **Parallel execution is verified synthetically, not in a live run.** The concurrent-commit
-  protocol was proven with two real git workers under maximum contention (61/61 commits, no
-  cross-contamination); the live dogfood phase happened to plan as a single plan, so it exercised
-  the machinery but not the parallelism.
+- **`--research` / `--skip-research` are untested as explicit flags.** The `research: auto`
+  behaviour they override is proven live in both directions; the flags themselves are not.
+- **The plan-retry gate has never fired.** `plan` re-spawns the planner once if a plan fails its
+  checks — no planner output has failed a check yet, so that branch is unexercised.
+- **~17 conformance checks only assert that the prose says the right thing.** They are regression
+  guards against an instruction being edited out, not evidence that an agent complies. Only the
+  live runs above are that.
 
 ## Tests
 
