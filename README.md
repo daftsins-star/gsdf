@@ -229,10 +229,7 @@ deliberate rather than accidental.
 
 **GSDF was conceived and designed by [Daftsins](https://github.com/daftsins-star).** The idea —
 keep GSD's quality guarantees but stop paying a cold subagent for every small fix, and put the
-review loop back in the chat where it belongs — is theirs, as is the specification the system
-was built from (`GSDF-SPEC.md`): the nine commands, the two agents, the one-planner-per-phase
-spawn budget, the filesystem-as-truth rule that makes it drop into existing GSD projects, and
-iterate mode itself. The implementation was written by Claude against that spec.
+review loop back in the chat where it belongs.
 
 Descended from [get-shit-done](https://github.com/ludicrypt/get-shit-done) by Lex Christopherson
 and [gsd-core](https://github.com/open-gsd/gsd-core) by Open GSD, both MIT. No code is vendored
