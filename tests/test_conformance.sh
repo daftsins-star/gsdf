@@ -87,6 +87,10 @@ for s in $(bin/gsdf help | tail -1 | sed 's/Subcommands: //'); do
   esac
 done
 
+echo "== execute must not fabricate an iteration to create the log =="
+is "execute uses iter start" "$(grep -c 'gsdf iter start' $C/execute.md)" "1"
+is "execute does not log a placeholder" "$(grep -c 'iter log N \"phase executed\"' $C/execute.md)" "0"
+
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
 

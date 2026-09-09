@@ -117,6 +117,9 @@ hasnt "frontmatter not duplicated" "$(grep -c '^status:' .planning/STATE.md)" "2
 echo "== 7. iterate log =="
 sandbox native-iterate
 is "iter count starts at 0" "$("$GSDF" iter count 01)" "0"
+"$GSDF" iter start 01 >/dev/null
+is "iter start creates the log with no entries" "$("$GSDF" iter count 01)" "0"
+has "iter start wrote frontmatter" "$(cat .planning/phases/01-drive/01-ITERATIONS.md)" "status: open"
 "$GSDF" iter log 01 "Knob too small -> min 44px [ui/src/knob.css]"
 "$GSDF" iter log 01 "DECISION: all knobs use the same scaling rule"
 is "iter count" "$("$GSDF" iter count 01)" "2"

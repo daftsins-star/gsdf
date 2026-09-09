@@ -40,7 +40,7 @@ was wrong; the fix is usually `/gsdf:plan N` again, not another execute.
 .claude/bin/gsdf state defer "<each Deferred bullet from each summary>"
 .claude/bin/gsdf state set status iterating
 .claude/bin/gsdf state position "Phase NN executed, iterating."
-.claude/bin/gsdf iter log N "phase executed"     # creates NN-ITERATIONS.md
+.claude/bin/gsdf iter start N                   # creates NN-ITERATIONS.md, logs nothing
 .claude/bin/gsdf tryit N
 ```
 
