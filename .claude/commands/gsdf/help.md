@@ -33,6 +33,8 @@ GSDF — Get Shit Done Fast
                                  Advisory until `abi_frozen: true` in config.json.
   gsdf update [--check]          Compare this install against GitHub's newest release
                                  and reinstall when behind. --check writes nothing.
+  gsdf bug "<one line>"          Record a GSDF bug you just hit, then carry on.
+  gsdf bugs [--clear]            Grouped list of what has been recorded.
 
 Iterate mode is where the time goes, and it costs nothing. After execute, just say what you
 want changed — "knob's too small", "default should be -6 dB" — and it gets edited inline, no

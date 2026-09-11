@@ -16,5 +16,8 @@ accepted change with `gsdf iter log N "<want> → <did> [files]"`. Rules the use
 `feat(NN): approve phase NN — <k> iterations`, then advance. Per-task commits during execute
 are `type(NN-MM): task name`.
 
+**If gsdf itself misbehaves** (wrong output, or a command not matching its doc), run
+`gsdf bug "<one line>"` and carry on — don't stop to investigate. Crashes self-record.
+
 **At approve, write `NN-FINDINGS.md`** for what the phase taught — captured during the
 work as `gsdf iter log N "FINDING: …"`, collated by `gsdf findings N`. See `approve.md`.

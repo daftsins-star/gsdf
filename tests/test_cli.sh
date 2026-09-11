@@ -512,6 +512,50 @@ hasnt "nor the newer tag's object sha" "$OUT" "bbbb"
 hasnt "a non-version tag is ignored" "$OUT" "not-a-version"
 rm -rf "$T"
 
+echo "== 12n. the bug log: costs nothing to write, survives everything =="
+B=$(mktemp -d); export GSDF_BUGLOG="$B/bugs.jsonl"
+is "empty log is not an error" "$("$GSDF" bugs | head -1 | cut -d' ' -f1-3)" "no bugs recorded"
+"$GSDF" bug "lint passed a phase with empty requirements" >/dev/null
+"$GSDF" bug "Lint passed a phase with EMPTY requirements" >/dev/null
+has "two spellings of one bug group together" "$("$GSDF" bugs)" "[2x] report"
+"$GSDF" bug >/dev/null 2>&1; is "no text is a usage error" "$?" "1"
+
+# The crash path is the whole point of the log, so it must be tested with an INJECTED
+# fault -- not with a real bug, which stops being a crash the moment it is fixed (this
+# test previously leaned on a params.lock KeyError, and silently stopped testing
+# anything when that got its own one-line error).
+cp "$GSDF" "$B/gsdf-crash"
+perl -pi -e 's/^def cmd_next\(pl\):/def cmd_next(pl):\n    raise RuntimeError("injected fault")/' "$B/gsdf-crash"
+chmod +x "$B/gsdf-crash"
+OUT=$(cd "$FIX/native-plan" && "$B/gsdf-crash" next 2>&1); RC=$?
+is "a crash exits non-zero" "$RC" "1"
+hasnt "a crash prints no traceback" "$OUT" "Traceback"
+has "a crash says it was recorded" "$OUT" "recorded"
+OUT=$("$GSDF" bugs)
+has "the crash recorded itself, unprompted" "$OUT" "[1x] crash"
+has "with the exception" "$OUT" "RuntimeError: injected fault"
+has "with the function and line that raised" "$OUT" "cmd_next:"
+has "and the command that caused it" "$OUT" "gsdf next"
+# GSDF_DEBUG must still hand a human the full traceback
+has "GSDF_DEBUG=1 restores the traceback" "$(cd "$FIX/native-plan" && GSDF_DEBUG=1 "$B/gsdf-crash" next 2>&1)" "Traceback"
+
+BEFORE=$(wc -l < "$GSDF_BUGLOG" | tr -d ' ')
+for i in 1 2 3 4 5 6 7 8; do "$GSDF" bug "concurrent $i" >/dev/null & done; wait
+N=$(python3 -c "
+import json,os
+print(sum(1 for l in open(os.environ['GSDF_BUGLOG']) if json.loads(l)))")
+is "8 concurrent writes all land and all parse" "$N" "$((BEFORE + 8))"
+TOTAL=$N
+"$GSDF" bugs --clear >/dev/null
+is "cleared" "$("$GSDF" bugs | head -1 | cut -d' ' -f1-3)" "no bugs recorded"
+is "but archived, not lost" "$(wc -l < "$B/bugs.archive.jsonl" | tr -d ' ')" "$TOTAL"
+printf 'not json at all\n' >> "$GSDF_BUGLOG"
+"$GSDF" bug "after the corruption" >/dev/null
+has "a corrupt line is skipped, not fatal" "$("$GSDF" bugs)" "after the corruption"
+cd "$FIX/empty"
+hasnt "bug needs no .planning" "$("$GSDF" bug "from a bare dir" 2>&1)" "no .planning/"
+cd "$ROOT"; unset GSDF_BUGLOG; rm -rf "$B"
+
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
 S=$(python3 -c "

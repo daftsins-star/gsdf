@@ -153,7 +153,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~937 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~1019 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out. (Lines, not words, is the honest
 unit here: `bin/gsdf` is never loaded into a context window, so what the number claims is how
 much code you have to trust — not what it costs you to run.)
@@ -179,9 +179,39 @@ gsdf lint 2              # exits 1 if a plan is not executable, naming the plan 
                          #   waves() would emit as one parallel wave, the opposite of
                          #   what those plans declared
 gsdf update              # check GitHub, reinstall if it is ahead (--check to look only)
+gsdf bug "<one line>"    # record a GSDF bug you just hit, from any project
+gsdf bugs [--clear]      # grouped list of what has been recorded
 ```
 
 Every read subcommand is pure — the test suite asserts `git status` is clean after all of them.
+
+### Bugs found while using it
+
+GSDF's own bugs surface while you are using GSDF on real work, in another project, mid-task —
+the worst moment to stop and write a report. So recording costs almost nothing:
+
+```bash
+gsdf bug "lint passed a phase whose plans had empty requirements"   # ~12 tokens
+gsdf bugs           # grouped, deduped, counted — read this in the GSDF repo later
+gsdf bugs --clear   # after fixing; archives rather than deletes
+```
+
+**Crashes record themselves.** A crash is never correct behaviour, so the CLI logs it with no
+agent involved and no tokens spent — the exception, the function and line that raised, the
+command that caused it, the version, and the directory:
+
+```
+[3x] crash  TypeError: 'int' object is not subscriptable
+      cmd_params:526  |  gsdf params 1  |  v1.2.0  |  2026-09-11 23:51
+```
+
+The log is one JSON line per event at `~/.claude/gsdf-bugs.jsonl` (`GSDF_BUGLOG` overrides) —
+global, because the bug is hit in your project and fixed in this one. Appends are locked, so
+parallel agents can't tear it, and a corrupt line is skipped rather than fatal.
+
+The only recurring cost is one sentence in the always-loaded `CLAUDE.md` block telling the agent
+to call `gsdf bug` instead of investigating: **~36 tokens per turn**. Delete that sentence and
+crash capture still works — you just lose the bugs that don't crash, which is most of them.
 
 ## How it compares
 
@@ -192,7 +222,7 @@ figure taken from the same real project (a JUCE gain plugin scaffolded by `/gsdf
 |---|---|---|---|
 | Commands | 29 | 72 | **11** |
 | Agents | 12 | 64 | **2** |
-| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **7,659** |
+| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **7,683** |
 | Description text loaded every turn | 1,880 chars | 5,349 chars | **498 chars** |
 | Context handed to the planner | ~3,572 tokens<sup>‡</sup> | ~3,572 tokens<sup>‡</sup> | **631 tokens** |
 | Subagents per 2-plan phase | 6–8 | 6–10 | **3** |

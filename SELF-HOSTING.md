@@ -39,6 +39,23 @@ It also reads and writes its receipt at the install it acts on (`~/.claude/bin/g
 not next to `bin/gsdf` — so running `./bin/gsdf update` from this checkout leaves no untracked
 file behind, and the install it actually replaced is the one whose receipt gets stamped.
 
+### The bug log is the inbox for this repo
+
+Bugs in GSDF are found while using GSDF on something else. `gsdf bug "<one line>"` records one
+from any project, crashes record themselves, and it all lands in `~/.claude/gsdf-bugs.jsonl`.
+So the loop from the other side is:
+
+```bash
+gsdf bugs            # here, in this repo: grouped, deduped, with func:line for crashes
+# fix, with a regression test for each
+gsdf bugs --clear    # archives to gsdf-bugs.archive.jsonl, does not delete
+```
+
+A crash record carries the frame that raised, so it is usually fixable without a repro. A
+report is one sentence and usually is not — read it as a lead, and reproduce before believing
+it. Note that a test written against a real crash stops testing anything the moment that crash
+is fixed: inject the fault instead (see `12n` in `tests/test_cli.sh`).
+
 ## Bootstrapping GSDF's own `.planning/`
 
 This repo ships without one, deliberately — the tests must not depend on it.

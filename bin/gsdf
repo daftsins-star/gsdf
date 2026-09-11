@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """gsdf - deterministic state tool for GSDF. Filesystem is the source of truth (spec 4a)."""
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 import fcntl, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 from contextlib import contextmanager
 from datetime import datetime, date
@@ -523,7 +523,12 @@ def cmd_params(pl, p, write=False):
         print("abi_frozen is not set in config.json — %d parameter(s), not enforced.\n"
               "Set it when the first release ships; before that, churn is fine." % len(cur))
         return 0
-    old = [(x["id"], x["version"]) for x in json.loads(read(lock_f))]
+    # params.lock is a file humans edit when they migrate deliberately, so a malformed one
+    # is a normal accident, not a programming error: one line, not a crash.
+    try:
+        old = [(x["id"], x["version"]) for x in json.loads(read(lock_f))]
+    except (json.JSONDecodeError, TypeError, KeyError) as e:
+        die("%s is not a valid parameter lock (%s) — re-lock with `gsdf params --write`" % (lock_f, e))
     oi, ci = [i for i, _ in old], [i for i, _ in cur]
     bad = []
     for i in oi:
@@ -851,12 +856,86 @@ def cmd_update(check=False, force=False, track_main=False):
     print("\nupdated to gsdf %s. Restart Claude Code to pick up the new commands." % rv)
     return 0
 
+# ---------- bug log ----------
+# Bugs in GSDF surface while using GSDF on real work, in some other project, mid-task --
+# the worst possible moment to stop and file a report. So recording has to cost nearly
+# nothing: crashes record themselves, and everything else is one line the agent can write
+# without breaking stride. The log is global, because the bug is hit in your project and
+# fixed in GSDF's.
+BUGLOG = Path(os.environ.get("GSDF_BUGLOG", Path.home() / ".claude" / "gsdf-bugs.jsonl"))
+
+def bug_record(kind, msg, where=""):
+    """Append one JSON line. Never raises: failing to record a bug must not become one."""
+    try:
+        rec = {"t": datetime.now().strftime("%Y-%m-%d %H:%M"), "k": kind, "v": VERSION,
+               "m": str(msg)[:400], "d": str(Path.cwd())[:200]}
+        # for a report the argv IS the message; recording it twice just pads the file
+        if kind != "report": rec["a"] = " ".join(sys.argv[1:])[:160]
+        if where: rec["w"] = where
+        BUGLOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(BUGLOG, "a", encoding="utf-8") as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            fcntl.flock(fh, fcntl.LOCK_UN)
+    except Exception:
+        pass
+
+def bug_frame(e):
+    """innermost gsdf frame as 'func:line' -- the one thing that makes a crash fixable."""
+    try:
+        import traceback
+        # Resolve BOTH sides. The traceback carries the path as invoked, and the usual
+        # install is reached through a symlink (~/.local/bin/gsdf -> ~/.claude/bin/gsdf) --
+        # and on macOS /var is itself a symlink to /private/var. Comparing a raw filename
+        # against a resolved one silently matched nothing exactly where it matters most.
+        me = Path(__file__).resolve()
+        fr = [x for x in traceback.extract_tb(e.__traceback__) if Path(x.filename).resolve() == me]
+        return "%s:%d" % (fr[-1].name, fr[-1].lineno) if fr else ""
+    except Exception:
+        return ""
+
+def cmd_bug(text):
+    if not text: die('usage: gsdf bug "<one line: what went wrong>"')
+    bug_record("report", text)
+    print("recorded. %s" % BUGLOG)
+
+def cmd_bugs(clear=False):
+    """Group, count and print. Compact on purpose -- this output is read in a context window."""
+    recs = []
+    for line in read(BUGLOG).splitlines():
+        try: recs.append(json.loads(line))
+        except json.JSONDecodeError: pass
+    if not recs:
+        return print("no bugs recorded (%s)" % BUGLOG)
+    if clear:
+        arch = BUGLOG.with_suffix(".archive.jsonl")
+        with open(arch, "a", encoding="utf-8") as fh: fh.write(read(BUGLOG))
+        BUGLOG.write_text("")
+        return print("archived %d record(s) -> %s" % (len(recs), arch))
+    groups = {}
+    for r in recs:
+        # crashes dedup by site + exception type; reports by their text
+        k = (r.get("w", "") + "|" + r.get("m", "").split(":")[0]) if r.get("k") == "crash" else r.get("m", "").strip().lower()
+        g = groups.setdefault(k, {"n": 0, "r": r, "vs": set(), "last": ""})
+        g["n"] += 1; g["vs"].add(r.get("v", "?")); g["last"] = max(g["last"], r.get("t", ""))
+        if r.get("k") == "crash": g["r"] = r
+    print("%d distinct, %d occurrence(s)   %s\n" % (len(groups), len(recs), BUGLOG))
+    for g in sorted(groups.values(), key=lambda x: (-x["n"], x["last"])):
+        r = g["r"]
+        print("[%dx] %-6s %s" % (g["n"], r.get("k", "?"), r.get("m", "")))
+        bits = [x for x in (r.get("w", ""), "gsdf " + r.get("a", "") if r.get("a") else "",
+                            "v" + ",".join(sorted(g["vs"])), g["last"]) if x]
+        print("      " + "  |  ".join(bits))
+    print("\nFix, then: gsdf bugs --clear")
+
 def main(a):
     c = a[0] if a else "next"
     if c == "init": return cmd_init(a[1] if len(a) > 1 else die("usage: gsdf init <name>"))
     if c in ("-V", "--version", "version"):
         return print("gsdf %s  (%s)" % (VERSION, Path(__file__).resolve()))
-    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt update state next phase plans waves conflicts lint context tryit iter quick verify findings params")
+    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt update bug bugs state next phase plans waves conflicts lint context tryit iter quick verify findings params")
+    if c == "bug": return cmd_bug(" ".join(a[1:]).strip())
+    if c == "bugs": return cmd_bugs("--clear" in a)
     if c == "update":
         # update returns before the generic flag check below, so it validates its own --
         # otherwise `gsdf update --forse` would quietly not force.
@@ -930,8 +1009,11 @@ if __name__ == "__main__":
     except BrokenPipeError: pass
     except KeyboardInterrupt: sys.exit(130)
     except Exception as e:
+        # A crash is never correct behaviour, so record it without being asked. Zero tokens:
+        # no agent is involved, and the frame is what makes it fixable later.
+        bug_record("crash", "%s: %s" % (type(e).__name__, e), bug_frame(e))
         # Spec 5: "exit non-zero with a one-line error". A traceback breaks that promise,
         # and in an agent's tool output it is context burn the agent cannot act on. The
         # traceback is still one env var away when a human is the one debugging.
         if os.environ.get("GSDF_DEBUG"): raise
-        die("%s: %s (set GSDF_DEBUG=1 for the traceback)" % (type(e).__name__, e))
+        die("%s: %s  [recorded — gsdf bugs]" % (type(e).__name__, e))

@@ -341,6 +341,8 @@ gsdf verify <N>                      # run config verify, else plan <verify>; ex
 gsdf findings <N>                    # FINDING: iteration lines + "## Findings" summary sections
 gsdf params <N> [--write]            # parameter ABI guard; --write re-locks (§5.5)
 gsdf update [--check] [--force] [--main]  # compare against GitHub, reinstall when behind (§5.6)
+gsdf bug "<one line>"                # record a GSDF bug hit during real use (§5.7)
+gsdf bugs [--clear]                  # grouped list; --clear archives
 ```
 
 Flags are never positional: the phase is taken from the first argument that is not a `-` flag,
@@ -351,6 +353,28 @@ phase and look like it worked.
 `waves` breaks a dependency deadlock by emitting the survivors as one layer, so a cycle would
 otherwise become a *parallel* wave. `lint` is where that is caught, because `/gsdf:plan` can
 still act on it there.
+
+### 5.7 The bug log
+
+GSDF's bugs are found while using GSDF on someone else's problem. A reporting step that costs
+real effort will not happen at that moment, so it has to cost nearly nothing.
+
+- **Crashes self-record.** An unhandled exception is never correct behaviour, so the top-level
+  handler appends the exception, the innermost gsdf frame (`func:line`), argv, version and cwd
+  before printing its one-line error. No agent, no tokens.
+- **Everything else is one line**: `gsdf bug "<what went wrong>"`. Most real bugs are silent
+  wrong answers — no crash to catch — so this is the path that matters.
+- Storage is `~/.claude/gsdf-bugs.jsonl`, one JSON object per line, `GSDF_BUGLOG` overrides.
+  Global, because the bug is hit in a user's project and fixed in GSDF's. Appends hold an
+  exclusive lock; a corrupt line is skipped, never fatal; recording never raises, because
+  failing to record a bug must not become one.
+- `gsdf bugs` groups (crashes by frame + exception type, reports by text, case-insensitive),
+  counts, and prints compactly — it is read inside a context window. `--clear` appends to
+  `gsdf-bugs.archive.jsonl` and truncates, rather than deleting.
+
+Frame matching resolves **both** sides of the path comparison: the traceback carries the path as
+invoked, and the normal install is reached through a symlink, so comparing a raw filename to a
+resolved one records no frame exactly where it is needed most.
 
 ### 5.6 `gsdf update`
 
