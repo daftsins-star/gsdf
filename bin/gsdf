@@ -182,18 +182,23 @@ def cmd_state(pl):
     print((fm + "\n" + (t[sp[0]:sp[2]] if sp else cap(t, 15))).strip())
 def write_state(pl, t): state_file(pl).write_text(t, encoding="utf-8")
 def state_set(pl, k, v):
+    # The value is DATA, never a replacement template. Passing it as one made a backslash
+    # an escape sequence -- `state set status "C:\temp\new"` silently stored "C:<tab>emp",
+    # `\1` crashed with a traceback, and `\g<0>` injected the whole matched line. A lambda
+    # replacement is substituted literally.
+    lit = lambda s: (lambda m: s)
     t = read(state_file(pl)) or die("STATE.md not found")
     if t.startswith("---") and t.find("\n---", 3) > 0:
         e = t.find("\n---", 3)
         head, body = t[3:e], t[e:]
         if re.search(r"^%s:" % re.escape(k), head, re.M):
-            head = re.sub(r"^%s:.*$" % re.escape(k), "%s: %s" % (k, v), head, count=1, flags=re.M)
+            head = re.sub(r"^%s:.*$" % re.escape(k), lit("%s: %s" % (k, v)), head, count=1, flags=re.M)
         else: head = head.rstrip("\n") + "\n%s: %s\n" % (k, v)
         t = "---" + head + body
     else:
         c = "<!-- gsdf: %s=%s -->" % (k, v)
-        t = re.sub(r"^<!-- gsdf: %s=.*-->$" % re.escape(k), c, t, count=1, flags=re.M) if re.search(
-            r"^<!-- gsdf: %s=" % re.escape(k), t, re.M) else re.sub(r"^(#[^\n]*\n)", r"\1\n" + c + "\n", t, count=1) or t + "\n" + c + "\n"
+        t = re.sub(r"^<!-- gsdf: %s=.*-->$" % re.escape(k), lit(c), t, count=1, flags=re.M) if re.search(
+            r"^<!-- gsdf: %s=" % re.escape(k), t, re.M) else re.sub(r"^(#[^\n]*\n)", lambda m: m.group(1) + "\n" + c + "\n", t, count=1) or t + "\n" + c + "\n"
     write_state(pl, t)
 def state_append(pl, pat, title, line):
     t = read(state_file(pl)) or die("STATE.md not found")
@@ -566,8 +571,14 @@ def cmd_verify(pl, p):
     src = re.compile(r"^(source|Source|src|dsp|plugin)/")
     if any(src.match(f) and not f.startswith(("ui/", "Source/ui/")) for f in touched) or not touched:
         keys.append("plugin_validate")
+    # A verify entry must be a shell string. A hand-edited config.json holding a list or a
+    # number reached subprocess.run() and crashed; worse, skipping it silently would report
+    # a phase as verified by fewer commands than its config claims.
+    bogus = [k for k in keys if k in v and not isinstance(v[k], str)]
+    for k in bogus:
+        print("ignoring verify.%s — expected a shell string, got %s" % (k, type(v[k]).__name__))
     cmds = [(k, v[k]) for k in keys
-            if v.get(k) and not str(v[k]).startswith("<")]
+            if v.get(k) and isinstance(v[k], str) and not v[k].startswith("<")]
     src = "config.json"
     if not cmds:
         # Fall back to the plans' own <verify> commands: a phase can be provably
@@ -703,21 +714,38 @@ def receipt():
     try: return json.loads(read(receipt_file()) or "{}")
     except json.JSONDecodeError: return {}
 def vtuple(s): return tuple(int(x) for x in re.findall(r"\d+", s or "")) or (0,)
-def raw_url(path):
+def raw_url(path, ref=None):
     m = re.search(r"github\.com[:/]+([^/]+?)/([^/]+?)(?:\.git)?/?$", REPO)
-    return m and "https://raw.githubusercontent.com/%s/%s/%s/%s" % (m.group(1), m.group(2), BRANCH, path)
-def remote_version():
+    return m and "https://raw.githubusercontent.com/%s/%s/%s/%s" % (m.group(1), m.group(2), ref or BRANCH, path)
+def remote_tags():
+    """Release tags on the remote, newest first. `git ls-remote` needs no clone and no token.
+
+    Tracking tags rather than the branch is what makes VERSION mean anything: a release
+    bumps it, and an update moves between releases instead of onto whatever is mid-work
+    on main."""
+    try:
+        r = subprocess.run(["git", "ls-remote", "--tags", "--refs", REPO],
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode: return []
+    except (OSError, subprocess.SubprocessError): return []
+    out = []
+    for line in r.stdout.splitlines():
+        p = line.split()
+        if len(p) == 2 and re.match(r"^v?\d+(\.\d+)*$", p[1].rsplit("/", 1)[-1]):
+            out.append((vtuple(p[1].rsplit("/", 1)[-1]), p[1].rsplit("/", 1)[-1], p[0]))
+    return sorted(out, reverse=True)
+def remote_version(ref=None):
     import urllib.request
-    u = raw_url("bin/gsdf") or die("GSDF_REPO is not a GitHub URL: %s" % REPO)
+    u = raw_url("bin/gsdf", ref) or die("GSDF_REPO is not a GitHub URL: %s" % REPO)
     try:
         with urllib.request.urlopen(u, timeout=20) as r: src = r.read().decode("utf-8", "replace")
     except Exception as e:
         die("could not reach GitHub (%s) — check the network, or set GSDF_REPO/GSDF_BRANCH" % e)
     m = re.search(r'^VERSION\s*=\s*"([^"]+)"', src, re.M)
     return m.group(1) if m else die("no VERSION in %s — is that a GSDF checkout?" % u)
-def remote_head():
+def remote_head(ref=None):
     try:
-        r = subprocess.run(["git", "ls-remote", REPO, BRANCH], capture_output=True, text=True, timeout=30)
+        r = subprocess.run(["git", "ls-remote", REPO, ref or BRANCH], capture_output=True, text=True, timeout=30)
         return r.stdout.split()[0] if r.returncode == 0 and r.stdout.split() else None
     except (OSError, subprocess.SubprocessError): return None
 def source_checkout():
@@ -727,38 +755,47 @@ def source_checkout():
         if all((c / x).exists() for x in ("bin/gsdf", "install.sh", "GSDF-SPEC.md")): return c
     return None
 
-def cmd_update(check=False, force=False):
+def cmd_update(check=False, force=False, track_main=False):
     """Compare this install against GitHub, and reinstall from it when it is behind.
 
+    Follows RELEASE TAGS when the remote has any, falling back to the branch when it
+    does not. That is what gives VERSION meaning: a release bumps it, and an update
+    lands on a release rather than on whatever is mid-work on main. `--main` opts back
+    into branch tracking for anyone who wants the unreleased tip.
+
     Two signals, because one is not enough: VERSION catches a real release, and the
-    install receipt's commit catches main moving without a version bump. Either is
+    install receipt's commit catches the ref moving without a version bump. Either is
     reason to offer an update; neither is acted on silently under --check.
     """
     r = receipt()
-    here, rv = r.get("commit"), remote_version()
+    here = r.get("commit")
     # Where this install came from decides what a commit mismatch MEANS. Installed from
     # GitHub, a different sha means behind. Installed from a local checkout, it usually
     # means ahead -- and "updating" would revert the build being developed.
     from_git = str(r.get("source", "")).startswith(("http", "git@", "ssh://"))
-    rsha, dest = remote_head(), update_dest()
+    tags = [] if track_main else remote_tags()
+    ref, rsha = (tags[0][1], tags[0][2]) if tags else (BRANCH, remote_head())
+    rv, dest = remote_version(ref), update_dest()
     print("installed  gsdf %-8s %s" % (VERSION, Path(__file__).resolve()))
     if install_root() is None:
         # Running from a checkout: the thing that gets replaced is the global install,
         # not this file. Saying so stops "update" looking like it edits the repo.
         print("targeting  %s  (this CLI runs from a source checkout)" % dest)
-    print("on github  gsdf %-8s %s@%s%s" % (rv, REPO, BRANCH, "  " + rsha[:8] if rsha else ""))
+    print("on github  gsdf %-8s %s@%s%s" % (rv, REPO, ref, "  " + rsha[:8] if rsha else ""))
+    if not tags and not track_main:
+        print("           (no release tags on the remote — tracking the %s branch)" % BRANCH)
     newer, moved = vtuple(rv) > vtuple(VERSION), bool(rsha and here and rsha != here)
 
     if vtuple(rv) < vtuple(VERSION):
-        print("\nthis install is NEWER than %s. Not touching it — `--force` installs %s anyway." % (BRANCH, rv))
+        print("\nthis install is NEWER than %s. Not touching it — `--force` installs %s anyway." % (ref, rv))
         if not force: return 0
     elif newer:   print("\nupdate available: %s -> %s" % (VERSION, rv))
     elif moved and not from_git:
         print("\nsame version, and %s is at a different commit (%s -> %s) — but this was installed\n"
               "from a local checkout (%s), so that is not evidence of being behind;\n"
-              "it usually means ahead. `--force` installs GitHub's copy anyway." % (BRANCH, here[:8], rsha[:8], r.get("source")))
+              "it usually means ahead. `--force` installs GitHub's copy anyway." % (ref, here[:8], rsha[:8], r.get("source")))
         if not force: return 0
-    elif moved:   print("\nsame version, but %s has moved since this was installed (%s -> %s)." % (BRANCH, here[:8], rsha[:8]))
+    elif moved:   print("\nsame version, but %s has moved since this was installed (%s -> %s)." % (ref, here[:8], rsha[:8]))
     elif force:   print("\nup to date — reinstalling anyway (--force).")
     else:
         print("\nup to date." + ("" if here else
@@ -776,11 +813,11 @@ def cmd_update(check=False, force=False):
                 "Updating copies GitHub over it, discarding the build installed from here.\n"
                 "  ./install.sh --global   installs THIS tree\n"
                 "  gsdf update --force     takes GitHub's"
-                % (sc, "uncommitted changes" if dirty else "commits not on %s" % BRANCH))
+                % (sc, "uncommitted changes" if dirty else "commits not on %s" % ref))
 
     tmp = tempfile.mkdtemp(prefix="gsdf-update-")
     try:
-        r = subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--branch", BRANCH, REPO, tmp + "/src"],
+        r = subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--branch", ref, REPO, tmp + "/src"],
                            capture_output=True, text=True, timeout=300)
         if r.returncode: die("clone failed: %s" % ((r.stderr.strip().splitlines() or [""])[-1]))
         src = Path(tmp) / "src"
@@ -788,7 +825,7 @@ def cmd_update(check=False, force=False):
         # The raw file and the clone are two fetches of the same ref. If they disagree,
         # something moved mid-update; better to stop than to install a surprise.
         if not got or got.group(1) != rv:
-            die("the clone says %s but %s advertised %s — refusing to install" % (got and got.group(1), BRANCH, rv))
+            die("the clone says %s but %s advertised %s — refusing to install" % (got and got.group(1), ref, rv))
         root = install_root()
         args = ["--global"] if (root is None or root == Path.home() / ".claude") else [str(root.parent)]
         print()
@@ -800,7 +837,7 @@ def cmd_update(check=False, force=False):
         # breaks the receipt leaves a stale one — and update then mis-reports for good.
         sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=src, capture_output=True, text=True).stdout.strip()
         receipt_file().write_text(json.dumps(
-            {"version": rv, "commit": sha or (rsha or "unknown"), "source": REPO + "@" + BRANCH,
+            {"version": rv, "commit": sha or (rsha or "unknown"), "source": REPO + "@" + ref,
              "installed": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")}, indent=2) + "\n", encoding="utf-8")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -813,7 +850,12 @@ def main(a):
     if c in ("-V", "--version", "version"):
         return print("gsdf %s  (%s)" % (VERSION, Path(__file__).resolve()))
     if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt update state next phase plans waves conflicts lint context tryit iter quick verify findings params")
-    if c == "update": sys.exit(cmd_update("--check" in a, "--force" in a))
+    if c == "update":
+        # update returns before the generic flag check below, so it validates its own --
+        # otherwise `gsdf update --forse` would quietly not force.
+        u = [x for x in a[1:] if x.startswith("-") and x not in ("--check", "--force", "--main")]
+        if u: die("unknown option: %s (gsdf update [--check] [--force] [--main])" % u[0])
+        sys.exit(cmd_update("--check" in a, "--force" in a, "--main" in a))
     pl = planning()
     if c == "next": return cmd_next(pl)
     pl = pl or need()
@@ -879,3 +921,10 @@ def main(a):
 if __name__ == "__main__":
     try: main(sys.argv[1:])
     except BrokenPipeError: pass
+    except KeyboardInterrupt: sys.exit(130)
+    except Exception as e:
+        # Spec 5: "exit non-zero with a one-line error". A traceback breaks that promise,
+        # and in an agent's tool output it is context burn the agent cannot act on. The
+        # traceback is still one env var away when a human is the one debugging.
+        if os.environ.get("GSDF_DEBUG"): raise
+        die("%s: %s (set GSDF_DEBUG=1 for the traceback)" % (type(e).__name__, e))

@@ -437,6 +437,46 @@ has "a source checkout has no install root" "$OUT" "root None"
 has "receipt targets the global install" "$OUT" "receipt $HOME/.claude/bin/gsdf-install.json"
 hasnt "receipt is never written inside the repo" "$OUT" "$ROOT/bin/gsdf-install.json"
 
+echo "== 12j. state values are data, never regex replacement templates =="
+T=$(mktemp -d); mkdir -p "$T/.planning/phases"
+printf '# Roadmap\n\n### Phase 1: X\n' > "$T/.planning/ROADMAP.md"
+cd "$T"
+# Overwriting an EXISTING key took the re.sub path, where the value was the replacement
+# TEMPLATE: "C:\temp\new" was stored as "C:<tab>emp", "\1" crashed with a traceback,
+# and "\g<0>" injected the whole matched line back into the file.
+for V in 'a\1b' 'C:\temp\new' 'x\g<0>y'; do
+  printf -- '---\nphase: 01\nstatus: idle\n---\n# State\n' > .planning/STATE.md
+  OUT=$("$GSDF" state set status "$V" 2>&1); RC=$?
+  is "state set stores '$V' verbatim" "$(grep '^status:' .planning/STATE.md)" "status: $V"
+  is "state set '$V' exits 0" "$RC" "0"
+  hasnt "state set '$V' printed no traceback" "$OUT" "Traceback"
+done
+# the no-frontmatter branch needs its \1 group to still work
+printf '# State\n\nprose\n' > .planning/STATE.md
+"$GSDF" state set phase 01 >/dev/null 2>&1
+has "comment marker lands after the heading" "$(cat .planning/STATE.md)" "<!-- gsdf: phase=01 -->"
+"$GSDF" state set phase 'C:\temp' >/dev/null 2>&1
+has "and overwriting it keeps the value verbatim" "$(cat .planning/STATE.md)" "<!-- gsdf: phase=C:\temp -->"
+cd "$ROOT"; rm -rf "$T"
+
+echo "== 12k. errors stay one line, even unexpected ones =="
+OUT=$("$GSDF" update --forse 2>&1); RC=$?
+is "unknown update flag exits non-zero" "$RC" "1"
+has "unknown update flag names itself" "$OUT" "unknown option: --forse"
+is "and is one line" "$(printf '%s' "$OUT" | wc -l | tr -d ' ')" "0"
+
+echo "== 12l. a malformed verify entry is reported, never run =="
+T=$(mktemp -d); mkdir -p "$T/.planning/phases"
+printf '# Roadmap\n\n### Phase 1: A\n' > "$T/.planning/ROADMAP.md"
+printf '{"verify":{"build":42,"test":"true"}}' > "$T/.planning/config.json"
+cd "$T"
+OUT=$("$GSDF" verify 1 2>&1); RC=$?
+is "a non-string verify entry does not crash" "$RC" "0"
+hasnt "no traceback" "$OUT" "Traceback"
+has "the bad entry is named, not silently dropped" "$OUT" "ignoring verify.build"
+has "the good one still runs" "$OUT" "verify: 1/1 passed"
+cd "$ROOT"; rm -rf "$T"
+
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
 S=$(python3 -c "

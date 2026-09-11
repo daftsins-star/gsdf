@@ -340,7 +340,7 @@ gsdf conflicts <N>                   # exit 1 if two plans in one wave write the
 gsdf verify <N>                      # run config verify, else plan <verify>; exit 0 pass / 1 fail / 2 nothing configured
 gsdf findings <N>                    # FINDING: iteration lines + "## Findings" summary sections
 gsdf params <N> [--write]            # parameter ABI guard; --write re-locks (§5.5)
-gsdf update [--check] [--force]      # compare against GitHub, reinstall when behind (§5.6)
+gsdf update [--check] [--force] [--main]  # compare against GitHub, reinstall when behind (§5.6)
 ```
 
 Flags are never positional: the phase is taken from the first argument that is not a `-` flag,
@@ -354,8 +354,17 @@ still act on it there.
 
 ### 5.6 `gsdf update`
 
-Needs no `.planning/` — it is install state, not project state. Compares two signals against
-`GSDF_REPO`/`GSDF_BRANCH` (default `daftsins-star/gsdf@main`):
+Needs no `.planning/` — it is install state, not project state.
+
+It tracks the newest **release tag** (`git ls-remote --tags`, no clone and no API token) and
+falls back to the branch only when the remote has none, saying so when it does. That is what
+makes `VERSION` mean anything: a release bumps it, and an update moves between releases rather
+than onto whatever is mid-work. `--main` opts back into branch tracking. The conformance suite
+enforces the other half — a tagged HEAD whose `VERSION` disagrees with its tag is a failure, as
+is a `VERSION` behind the newest tag, because a release that forgets the bump ships to every
+existing install as "already up to date".
+
+Compares two signals against `GSDF_REPO`/`GSDF_BRANCH` (default `daftsins-star/gsdf`):
 
 - `VERSION` in the remote `bin/gsdf`, fetched raw. Moves on a release.
 - the commit in `<install>/bin/gsdf-install.json`, against `git ls-remote`. Moves whenever

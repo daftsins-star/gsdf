@@ -43,14 +43,19 @@ reports where the project stands, and writes nothing under `phases/`.
 
 ```bash
 gsdf update --check   # compare this install against GitHub, write nothing
-gsdf update           # reinstall from GitHub if it is ahead
+gsdf update           # reinstall from the newest release if it is ahead
+gsdf update --main    # track the unreleased tip of main instead
 ```
 
+It follows **release tags** when the repo has any, so a version number means something: a
+release bumps `VERSION`, and an update lands on a release rather than on whatever is mid-work
+on `main`. With no tags published it tracks `main` and says so.
+
 It compares two things, because the version string alone is not enough: `VERSION`, which moves
-on a release, and the commit recorded in the install receipt, which moves whenever `main` does.
-Either being ahead offers an update; neither is acted on under `--check`. It reinstalls the way
-you installed — global or project — by running that release's own `install.sh`, so a new command
-file or template arrives with the CLI rather than after it.
+on a release, and the commit recorded in the install receipt, which moves whenever the tracked
+ref does. Either being ahead offers an update; neither is acted on under `--check`. It reinstalls
+the way you installed — global or project — by running that release's own `install.sh`, so a new
+command file or template arrives with the CLI rather than after it.
 
 It refuses to run inside a GSDF checkout that has uncommitted changes or commits not on `main`,
 because installing GitHub's copy there would quietly discard the build you are developing. Use
@@ -148,8 +153,10 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~881 lines of stdlib Python that answers *where am I* deterministically, so agents
-don't burn context reading five markdown files to find out.
+`gsdf` is ~930 lines of stdlib Python that answers *where am I* deterministically, so agents
+don't burn context reading five markdown files to find out. (Lines, not words, is the honest
+unit here: `bin/gsdf` is never loaded into a context window, so what the number claims is how
+much code you have to trust — not what it costs you to run.)
 
 ```bash
 gsdf next                # plan 03 | execute 02 | iterate 02 | milestone-done | new-project
@@ -185,13 +192,19 @@ figure taken from the same real project (a JUCE gain plugin scaffolded by `/gsdf
 |---|---|---|---|
 | Commands | 29 | 72 | **11** |
 | Agents | 12 | 64 | **2** |
-| Lines of command + agent markdown | 16,423 | 26,785 | **1,060** |
+| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **7,659** |
 | Description text loaded every turn | 1,880 chars | 5,349 chars | **498 chars** |
-| Context handed to the planner | ~3,572 tokens<sup>†</sup> | ~3,572 tokens<sup>†</sup> | **631 tokens** |
+| Context handed to the planner | ~3,572 tokens<sup>‡</sup> | ~3,572 tokens<sup>‡</sup> | **631 tokens** |
 | Subagents per 2-plan phase | 6–8 | 6–10 | **3** |
 | Subagents during review/iteration | 1+ per fix | 1+ per fix | **0** |
 
-<sup>†</sup> Both read PROJECT.md + ROADMAP.md + STATE.md + REQUIREMENTS.md (+ prior SUMMARYs) to
+<sup>†</sup> Words, not lines, because the cost being compared is context and a line is a bad
+proxy for it. GSDF's markdown runs 7.2 words per line against get-shit-done's 3.6, so counting
+lines would report a 15× advantage where the honest figure is **7.7×**. Words are exact; at
+roughly 1.3 tokens per word that is ~10k tokens against ~77k and ~205k. All three counted the
+same way, `commands/**/*.md` + `agents/**/*.md`, on the same day.
+
+<sup>‡</sup> Both read PROJECT.md + ROADMAP.md + STATE.md + REQUIREMENTS.md (+ prior SUMMARYs) to
 plan. `gsdf context N` selects the phase's slice of exactly that material. The gap widens as a
 project grows: GSDF caps every section, the read-everything pattern accumulates.
 
@@ -229,7 +242,7 @@ Measured on the test fixtures:
 | `gsdf context N` | **37 ms**, ~**631 tokens** (budget: 100 ms, 2,500 tokens) |
 | Subagents per 2-plan phase | **3** — one planner, two executors. Iterate and approve add none. |
 | Command descriptions, all 11 | **498 characters** total (loaded every turn; budget 550) |
-| `gsdf-executor.md` / `gsdf-planner.md` | **86** / **113** lines |
+| `gsdf-executor.md` / `gsdf-planner.md` | **877** / **907** words (read at every spawn) |
 
 **The end-to-end wall-clock comparison has not been run.** It needs a real interactive session —
 `/gsdf:new-project` through `approved` on a scratch project — which can't be produced from a

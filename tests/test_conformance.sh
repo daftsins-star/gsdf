@@ -93,16 +93,20 @@ CLI=$(wc -l < bin/gsdf | tr -d ' ')
 DOC=$(grep -oE '~[0-9]+ lines of stdlib Python' README.md | grep -oE '[0-9]+')
 [ "$DOC" -ge $((CLI - 30)) ] && [ "$DOC" -le $((CLI + 30)) ] && ok "README CLI line count is current ($DOC vs $CLI)" \
   || bad "README CLI line count" "says ~$DOC, actual $CLI"
-# Every "measured" number in the README is a claim that rots. The line count was already
-# guarded; these three had each drifted by the time anyone looked.
-AM=$(cat .claude/commands/gsdf/*.md .claude/agents/gsdf-*.md | wc -l | tr -d ' ')
-DM=$(printf '%s' "$(grep -oE '\| Lines of command \+ agent markdown \|.*\*\*([0-9,]+)\*\*' README.md)" | grep -oE '\*\*[0-9,]+\*\*$' | tr -d '*,')
-[ -n "$DM" ] && [ "$DM" -ge $((AM - 40)) ] && [ "$DM" -le $((AM + 40)) ] \
-  && ok "README command+agent line count is current ($DM vs $AM)" \
-  || bad "README command+agent line count" "says $DM, actual $AM"
+# Every "measured" number in the README is a claim that rots, and the unit matters as much
+# as the number: what these rows compare is CONTEXT, so they count words, not lines. GSDF's
+# markdown runs ~7.2 words per line against get-shit-done's 3.6, so a line count would
+# report roughly twice the advantage that actually exists.
+AW=$(cat .claude/commands/gsdf/*.md .claude/agents/gsdf-*.md | wc -w | tr -d ' ')
+DW=$(grep -oE '\| Words of command \+ agent markdown[^|]*\|[^|]*\|[^|]*\| \*\*[0-9,]+\*\*' README.md | grep -oE '[0-9,]+\*\*$' | tr -d '*,')
+[ -n "$DW" ] && [ "$DW" -ge $((AW - 200)) ] && [ "$DW" -le $((AW + 200)) ] \
+  && ok "README command+agent WORD count is current ($DW vs $AW)" \
+  || bad "README command+agent word count" "says ${DW:-none}, actual $AW"
+# lines is the wrong unit here and must not creep back into that row
+hasnt "the comparison table does not count lines" "$(cat README.md)" "| Lines of command + agent markdown"
 for agent in executor planner; do   # not $A: that is the agents dir, used further down
-  AL=$(wc -l < "$A/gsdf-$agent.md" | tr -d ' ')
-  has "README states gsdf-$agent.md line count ($AL)" "$(cat README.md)" "**$AL**"
+  AW2=$(wc -w < "$A/gsdf-$agent.md" | tr -d ' ')
+  has "README states gsdf-$agent.md word count ($AW2)" "$(cat README.md)" "**$AW2**"
 done
 CT=$(cd tests/fixtures/original-midphase && "$ROOT/bin/gsdf" context 02 | wc -w | tr -d ' ')
 CT=$((CT * 13 / 10))
@@ -193,6 +197,28 @@ done
 for f in $(grep -ohE '\]\(([A-Za-z0-9_.-]+\.md)\)' *.md | sed 's/](\(.*\))/\1/' | sort -u); do
   is "doc link resolves: $f" "$([ -f "$f" ] && echo yes)" "yes"
 done
+
+echo "== a release bumps VERSION =="
+# VERSION is what `gsdf update` compares, so a release that forgets to bump it ships as
+# "already up to date" to everyone. Two invariants, both mechanical:
+V=$(sed -n 's/^VERSION *= *"\(.*\)"/\1/p' bin/gsdf | head -1)
+TAG=$(git describe --exact-match --tags HEAD 2>/dev/null | sed 's/^v//')
+if [ -n "$TAG" ]; then
+  is "HEAD is tagged, so VERSION matches the tag" "$V" "$TAG"
+else
+  ok "HEAD is untagged (no release to check)"
+fi
+NEWEST=$(git tag --list 'v*' --sort=-v:refname | head -1 | sed 's/^v//')
+if [ -n "$NEWEST" ]; then
+  python3 -c "
+import sys
+def vt(s): return tuple(int(x) for x in s.split('.'))
+sys.exit(0 if vt('$V') >= vt('$NEWEST') else 1)" \
+    && ok "VERSION ($V) is not behind the newest tag ($NEWEST)" \
+    || bad "VERSION is behind its own newest release" "VERSION $V < tag $NEWEST"
+else
+  ok "no release tags yet (nothing to be behind)"
+fi
 
 echo "== no hooks =="
 is "zero hooks in settings.json" "$(python3 -c "import json;print(len(json.load(open('.claude/settings.json')).get('hooks',{})))")" "0"
