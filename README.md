@@ -102,7 +102,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~485 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~562 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out.
 
 ```bash
@@ -113,6 +113,9 @@ gsdf tryit 2             # how to see the work, and what needs a human eye
 gsdf iter log 2 "..."    # one line per accepted change
 gsdf waves 2             # [["01"], ["02"]]
 gsdf conflicts 2         # exits 1 if two plans in one wave write the same file
+gsdf verify 2            # runs the phase's verify commands; exits non-zero on failure,
+                         #   2 and "NONE CONFIGURED" when there is nothing to run
+gsdf findings 2          # what the phase captured as reusable, for approve to collate
 gsdf lint 2              # exits 1 if a plan is not executable, naming the plan and why
 ```
 

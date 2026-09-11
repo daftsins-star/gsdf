@@ -54,6 +54,16 @@ Don't ask "was that right?" — asking is what makes this slow.
 **Rules the user states, log as decisions.** "always", "from now on", "all the knobs should" →
 prefix the logged line `DECISION:`. Those get promoted to STATE.md on approve and survive the phase.
 
+**Lessons the work teaches, log as findings.** Prefix the line `FINDING:` when something you
+just learned would be true on a *different* project — a tool behaving against reasonable
+expectation, a guard that turned out to prove nothing, the misconception that let a bug
+survive review. Not the bug itself, and never project history.
+
+Log it now, in one line, while you still know why it mattered. Approve only collates these;
+it does not go hunting for them afterwards, because reconstructing at the end what was
+obvious in the moment is how the lesson gets lost. If you are unsure, log it — a bad finding
+is cheap to drop later, an unrecorded one is gone.
+
 **Ask only when genuinely ambiguous** — two readings that lead to different edits. Otherwise pick
 the obvious one, do it, and say which reading you took.
 

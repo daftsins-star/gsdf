@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """gsdf - deterministic state tool for GSDF. Filesystem is the source of truth (spec 4a)."""
 VERSION = "1.0.0"
-import fcntl, hashlib, json, os, re, shutil, sys, tempfile
+import fcntl, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 from contextlib import contextmanager
 from datetime import datetime, date
 from pathlib import Path
@@ -251,6 +251,10 @@ def cmd_context(pl, p):
     ch = next((c for c in [pl / "continue-here.md", p["dir"] and p["dir"] / ".continue-here.md"] if c and c.exists()), None)
     if ch: out.append("## Handoff (continue-here.md)\n\n" + cap(read(ch).strip(), 40))
     if cfg.get("verify"): out.append("## Verify commands\n\n```json\n%s\n```" % json.dumps(cfg["verify"], indent=2))
+    # Say so out loud when there are none. Silence here reads exactly like a
+    # configured project, and approve's promise ("nothing was approved that
+    # doesn't build") is unenforceable without commands to run.
+    else: out.append("## Verify commands\n\nNONE CONFIGURED — `config.json` has no `verify` entries, so there is\nnothing for execute or approve to run. Plans must carry their own\n`<verify>` commands, and approve cannot claim this phase builds. Fix with\n`gsdf init` in a project that has a build, or add `verify.build` /\n`verify.test` / `verify.ui` by hand.")
     prev = [x for x in phases(pl) if key(x["num"]) < key(p["num"]) and x["dir"]]
     if prev:
         q = prev[-1]
@@ -372,6 +376,71 @@ def merge(dst, src):
         if isinstance(v, dict) and isinstance(dst.get(k), dict): merge(dst[k], v)
         elif k not in dst or dst.get(k) in ("", None): dst[k] = v
     return dst
+def cmd_verify(pl, p):
+    """Run the phase's verification and report honestly. Exit non-zero on failure.
+
+    This lives here rather than in approve.md because it is a CHECK, and a check
+    written as prompt text is a check that can be forgotten. The bug it exists to
+    stop is specific: approve used to print "Verified: build OK test OK" from a
+    template, whether or not any command ran -- and a project whose config.json
+    has no verify block looked exactly like one that passed.
+    """
+    cfg = config(pl)
+    v = cfg.get("verify") or {}
+    cmds = [(k, v[k]) for k in ("build", "test", "ui") if v.get(k)]
+    src = "config.json"
+    if not cmds:
+        # Fall back to the plans' own <verify> commands: a phase can be provably
+        # green without a project-level build, and silence would misreport that.
+        seen, pv = set(), []
+        for pl_ in plans_of(p["dir"], p["prefix"]):
+            for m in re.finditer(r"<verify>(.*?)</verify>", read(Path(pl_["file"])), re.S):
+                c = m.group(1).strip()
+                if c and c not in seen:
+                    seen.add(c); pv.append(("plan %s" % pl_["id"], c))
+        cmds, src = pv, "plan <verify> blocks"
+    if not cmds:
+        print("NONE CONFIGURED — no `verify` in config.json and no <verify> in any plan.\n"
+              "Nothing can be proven about phase %s. Add verify.build / verify.test, or run `gsdf init`." % p["prefix"])
+        return 2
+    print("verify %s — %d command(s) from %s" % (p["prefix"], len(cmds), src))
+    bad = 0
+    for name, c in cmds:
+        r = subprocess.run(c, shell=True, capture_output=True, text=True)
+        tail = [l for l in (r.stdout + r.stderr).splitlines() if l.strip()][-1:] or [""]
+        print("  %-22s exit %d  %s" % (name, r.returncode, tail[0][:100]))
+        if r.returncode: bad += 1
+    print("verify: %d/%d passed" % (len(cmds) - bad, len(cmds)))
+    return 1 if bad else 0
+
+
+def cmd_findings(pl, p):
+    """Print what this phase captured as reusable, for approve to collate.
+
+    Two sources, both written at the moment the lesson was learned: iteration
+    lines prefixed FINDING:, and `## Findings` sections in plan summaries.
+    Nothing here judges -- judging later, from a record written for another
+    purpose, is exactly what the findings format exists to avoid.
+    """
+    out = []
+    for l in iter_lines(p):
+        # Lines are "- HH:MM — FINDING: ...", so anchoring on ^FINDING: matches
+        # nothing. Match the prefix anywhere after the timestamp.
+        m = re.search(r"FINDING:\s*(.+)$", l)
+        if m: out.append(("iterate", m.group(1).strip()))
+    for x in plans_of(p["dir"], p["prefix"]):
+        txt = read(Path(x["file"]).with_name(Path(x["file"]).name.replace("-PLAN.md", "-SUMMARY.md")))
+        m = re.search(r"^## Findings\s*$(.*?)(?=^## |\Z)", txt, re.S | re.M)
+        if m:
+            for line in m.group(1).splitlines():
+                if line.strip().startswith("- "): out.append(("plan %s" % x["id"], line.strip()[2:]))
+    if not out:
+        print("no findings captured in phase %s — normal; nothing reusable is a real answer" % p["prefix"])
+        return 0
+    for where, text in out: print("[%s] %s" % (where, text))
+    return 0
+
+
 def cmd_adopt(pl):
     (pl / "config.json").write_text(json.dumps(merge(config(pl, strict=True), detect(pl.parent)), indent=2) + "\n", encoding="utf-8")
     print("Adopted %s" % pl); cmd_list(pl); print(); cmd_next(pl)
@@ -484,6 +553,8 @@ def main(a):
     if c == "lint": return cmd_lint(pl, p)
     if c == "context": return cmd_context(pl, p)
     if c == "tryit": return cmd_tryit(pl, p)
+    if c == "verify": sys.exit(cmd_verify(pl, p))
+    if c == "findings": return cmd_findings(pl, p)
     die("unknown subcommand: %s (try `gsdf help`)" % c)
 
 if __name__ == "__main__":
