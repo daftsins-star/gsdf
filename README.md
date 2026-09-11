@@ -153,7 +153,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~1026 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~1095 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out. (Lines, not words, is the honest
 unit here: `bin/gsdf` is never loaded into a context window, so what the number claims is how
 much code you have to trust — not what it costs you to run.)
@@ -181,6 +181,7 @@ gsdf lint 2              # exits 1 if a plan is not executable, naming the plan 
 gsdf update              # check GitHub, reinstall if it is ahead (--check to look only)
 gsdf bug "<one line>"    # record a GSDF bug you just hit, from any project
 gsdf bugs [--clear]      # grouped list of what has been recorded
+gsdf trace on|off|show   # record a real phase's call sequence, then check it
 ```
 
 Every read subcommand is pure — the test suite asserts `git status` is clean after all of them.
@@ -213,6 +214,32 @@ The only recurring cost is one sentence in the always-loaded `CLAUDE.md` block t
 to call `gsdf bug` instead of investigating: **~36 tokens per turn**. Delete that sentence and
 crash capture still works — you just lose the bugs that don't crash, which is most of them.
 
+### Checking it against a real phase
+
+Reading the command markdown cannot tell you whether the commands *behave* — an agent that skips
+approve's verify gate raises nothing, produces no error, and looks exactly like one that didn't.
+Only a real phase settles that, so record one:
+
+```bash
+gsdf trace on      # in the project you're about to work in
+# /gsdf:plan N → /gsdf:execute N → iterate → approved
+gsdf trace show    # the call sequence, with exit codes, checked against the documented process
+gsdf trace off
+```
+
+`show` prints every `gsdf` call the run made and then checks invariants the markdown promises but
+nothing else enforces:
+
+```
+  MISS approve ran its verify gate
+       a phase was advanced without gsdf verify -- approve.md step 1 was skipped
+  ok   execute handed off with tryit
+```
+
+A sentinel file switches it on, not an environment variable: every agent Bash call is a fresh
+shell, so an exported variable would not survive between them. Off by default, and off costs one
+`stat` per call.
+
 ## How it compares
 
 Measured, not asserted — both upstreams cloned and counted on the same day, and the context
@@ -222,7 +249,7 @@ figure taken from the same real project (a JUCE gain plugin scaffolded by `/gsdf
 |---|---|---|---|
 | Commands | 29 | 72 | **11** |
 | Agents | 12 | 64 | **2** |
-| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **8,040** |
+| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **8,058** |
 | Description text loaded every turn | 1,880 chars | 5,349 chars | **498 chars** |
 | Context handed to the planner | ~3,572 tokens<sup>‡</sup> | ~3,572 tokens<sup>‡</sup> | **631 tokens** |
 | Subagents per 2-plan phase | 6–8 | 6–10 | **3** |

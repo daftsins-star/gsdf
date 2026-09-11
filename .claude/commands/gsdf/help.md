@@ -35,6 +35,8 @@ GSDF — Get Shit Done Fast
                                  and reinstall when behind. --check writes nothing.
   gsdf bug "<one line>"          Record a GSDF bug you just hit, then carry on.
   gsdf bugs [--clear]            Grouped list of what has been recorded.
+  gsdf trace on|off|show         Record a real phase's call sequence and check it
+                                 against the process the commands describe.
 
 Iterate mode is where the time goes, and it costs nothing. After execute, just say what you
 want changed — "knob's too small", "default should be -6 dB" — and it gets edited inline, no

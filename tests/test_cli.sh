@@ -574,6 +574,40 @@ is "STATE.md is untouched" "$(grep -c '^- ' .planning/STATE.md)" "0"
 has "a real entry still writes" "$(cat .planning/STATE.md)" "a real item"
 cd "$ROOT"; rm -rf "$T"
 
+echo "== 12p. trace: what a real end-to-end run is for =="
+TR=$(mktemp -d); export GSDF_TRACE_ON="$TR/on" GSDF_TRACE_FILE="$TR/trace.jsonl"
+is "nothing recorded before it is switched on" "$("$GSDF" trace show)" "no trace recorded — \`gsdf trace on\`, run a phase, come back"
+cd "$FIX/native-plan"; "$GSDF" next >/dev/null          # must NOT be recorded
+cd "$ROOT"
+is "still nothing while off" "$([ -f "$GSDF_TRACE_FILE" ] && wc -l < "$GSDF_TRACE_FILE" | tr -d ' ' || echo 0)" "0"
+"$GSDF" trace on >/dev/null
+W=$(mktemp -d); cp -R "$FIX/native-iterate" "$W/p"; cd "$W/p"
+# a correct approve sequence
+"$GSDF" lint 1 >/dev/null 2>&1; "$GSDF" tryit 1 >/dev/null 2>&1; "$GSDF" iter start 1 >/dev/null 2>&1
+"$GSDF" verify 1 >/dev/null 2>&1; "$GSDF" findings 1 >/dev/null 2>&1; "$GSDF" phase advance 1 >/dev/null 2>&1
+OUT=$("$GSDF" trace show)
+has "a correct run passes the verify-gate rule" "$OUT" "ok   approve ran its verify gate"
+has "and the findings rule" "$OUT" "ok   approve collated findings"
+has "and the lint rule" "$OUT" "ok   plans were linted"
+hasnt "no rule reports MISS on a correct run" "$OUT" "MISS"
+has "the call sequence itself is shown" "$OUT" "phase advance 1"
+hasnt "trace show does not record itself" "$OUT" "trace show"
+# a run that skips the gates -- the failure no static read can see
+"$GSDF" trace on >/dev/null                              # truncates
+cd "$W/p"; "$GSDF" tryit 1 >/dev/null 2>&1; "$GSDF" phase advance 1 >/dev/null 2>&1
+OUT=$("$GSDF" trace show)
+has "a skipped verify gate is caught" "$OUT" "MISS approve ran its verify gate"
+has "and it says which step was skipped" "$OUT" "approve.md step 1 was skipped"
+# exit codes are recorded, not just calls
+"$GSDF" trace on >/dev/null; cd "$W/p"; "$GSDF" context 99 >/dev/null 2>&1
+has "a failing call records its exit code" "$("$GSDF" trace show)" "exit 1"
+"$GSDF" trace off >/dev/null
+cd "$W/p"; "$GSDF" next >/dev/null 2>&1
+BEFORE=$(wc -l < "$GSDF_TRACE_FILE" | tr -d ' ')
+cd "$W/p"; "$GSDF" next >/dev/null 2>&1
+is "off means off" "$(wc -l < "$GSDF_TRACE_FILE" | tr -d ' ')" "$BEFORE"
+cd "$ROOT"; unset GSDF_TRACE_ON GSDF_TRACE_FILE; rm -rf "$TR" "$W"
+
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
 S=$(python3 -c "

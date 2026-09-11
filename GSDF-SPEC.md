@@ -343,6 +343,7 @@ gsdf params <N> [--write]            # parameter ABI guard; --write re-locks (§
 gsdf update [--check] [--force] [--main]  # compare against GitHub, reinstall when behind (§5.6)
 gsdf bug "<one line>"                # record a GSDF bug hit during real use (§5.7)
 gsdf bugs [--clear]                  # grouped list; --clear archives
+gsdf trace on|off|show               # record a real run's call sequence, check it (§5.8)
 ```
 
 Flags are never positional: the phase is taken from the first argument that is not a `-` flag,
@@ -375,6 +376,22 @@ real effort will not happen at that moment, so it has to cost nearly nothing.
 Frame matching resolves **both** sides of the path comparison: the traceback carries the path as
 invoked, and the normal install is reached through a symlink, so comparing a raw filename to a
 resolved one records no frame exactly where it is needed most.
+
+### 5.8 `gsdf trace` — what only a real run can settle
+
+Every other check here is static: the tests read files and compare them. None of it can tell you
+whether `/gsdf:approve` actually runs its verify gate, because an agent that skips it raises
+nothing and leaves no trace in the tree. That is checkable only by running a phase and recording
+what the CLI was asked to do.
+
+`trace on` writes a sentinel (not an env var — each agent Bash call is a fresh shell, so an
+export would not survive between them). While it exists, every invocation appends its argv, exit
+code, time and directory. `trace show` prints the sequence and evaluates `TRACE_RULES`: pairs of
+"if X ran, Y must have run before it", each naming the command file and step the miss implies.
+Off by default; the cost when off is one `stat` per call.
+
+The rules are deliberately few and unambiguous — a rule that fires on a legitimate variation is
+a rule that gets ignored.
 
 ### 5.6 `gsdf update`
 
