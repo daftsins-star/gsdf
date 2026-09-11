@@ -24,9 +24,21 @@ is "no effort: max anywhere" "$(grep -rc 'effort: max' $C $A 2>/dev/null | grep 
 is "effort: low on the cheap commands" "$(grep -l '^effort: low' $C/*.md | xargs -n1 basename | sort | tr '\n' ' ')" "approve.md help.md pause.md progress.md resume.md "
 
 echo "== size budgets =="
-lt "gsdf-executor.md lines" "$(wc -l < $A/gsdf-executor.md | tr -d ' ')" 60
-lt "gsdf-planner.md lines"  "$(wc -l < $A/gsdf-planner.md | tr -d ' ')" 120
-for f in $C/*.md; do lt "$(basename $f) lines" "$(wc -l < $f | tr -d ' ')" 120; done
+# Words, not lines. `wc -l` measured the wrong thing and was already being gamed:
+# progress.md carried a 256-char line and resume.md a 209 while "passing" a 120-line
+# cap, and the clause a line cap cuts first is the "— because <why>" that turns a rule
+# from literal to understood. Word count survives a reflow; the caps below are ~1.5x
+# current size, so they bite on drift rather than on the next useful sentence.
+lt "gsdf-executor.md words" "$(wc -w < $A/gsdf-executor.md | tr -d ' ')" 900
+lt "gsdf-planner.md words"  "$(wc -w < $A/gsdf-planner.md | tr -d ' ')" 1300
+for f in $C/*.md; do lt "$(basename $f) words" "$(wc -w < $f | tr -d ' ')" 1000; done
+
+# Prose wraps; tables and code do not. Without the exemption this would forbid a
+# markdown table row, which cannot be wrapped at all.
+for f in $A/gsdf-*.md $C/*.md; do
+  WIDE=$(awk 'BEGIN{fence=0} /^```/{fence=!fence; next} fence{next} /^[[:space:]]*\|/{next} length>110{c++} END{print c+0}' "$f")
+  is "$(basename $f) prose lines over 110 chars" "$WIDE" "0"
+done
 is "command count" "$(ls $C/*.md | wc -l | tr -d ' ')" "11"
 is "agent count" "$(ls $A/gsdf-*.md | wc -l | tr -d ' ')" "2"
 D=$(python3 -c "

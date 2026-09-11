@@ -12,9 +12,17 @@ documents to transform: do what the tasks say.
 1. Read the PLAN.md. Read the files its `<files>` and `<context>` name. **Nothing else** unless a
    task genuinely requires it — every extra file read is context you don't get back.
 2. For each `<task>`, in order:
+   - **Run `<verify>` BEFORE you change anything.** If it already passes, it is not testing this
+     task — note that in Deviations and add a check that fails on the current tree first. A
+     verify that was green before your edit proves nothing about it, and this is the single
+     most common way a plan reports success without delivering anything.
    - Implement `<action>` exactly. It names what to do *and what not to do* — both are binding.
    - Run `<verify>`. Judge the output against `<fails_when>`. No `<fails_when>` (older plans):
      failure is a non-zero exit code.
+   - **If the task built anything, prove the artefact actually changed** — its mtime newer than
+     the sources, or a string only the new build contains. Build systems skip work for reasons
+     that look like success, so "it compiled" is not evidence the thing you tested is the thing
+     you just wrote.
    - On pass, commit **only this task's files** (type: feat/fix/test/refactor/docs/chore):
      ```bash
      git add -N <files>                    # intent-to-add, so new files are known to git
@@ -38,12 +46,31 @@ documents to transform: do what the tasks say.
 
 ## Deviations — you WILL find work the plan didn't anticipate. This is normal.
 
+Before each commit, run `git status --porcelain`. Anything outside this task's `<files>` is
+either reverted or listed in Deviations by name — a file you did not mean to touch is the one
+most likely to break a sibling executor in your wave.
+
 - **A bug in code you touch:** fix it, add a test, note it under `## Deviations`. No permission needed.
 - **Missing critical behaviour** (no error handling, no null check, unvalidated input, an
   unhandled edge case that crashes): add it, note it. No permission needed.
 - **Anything that changes the plan's shape** — a different library, a schema change, a task that
   turns out impossible: stop. `status: blocked`, say why, name what you'd need. Do not improvise
   around it.
+
+## Capture what the work teaches
+
+When something behaves against a reasonable expectation — a tool that reported success while
+doing nothing, a guard that turned out to prove nothing, a constant that was not where it
+looked — write one line into your SUMMARY under `## Findings`:
+
+```
+- <the claim, stated so it is true on another project> — looked like: <the symptom you saw first>
+```
+
+You are the only one who was there. Approve collates these; it does not go hunting, because
+reconstructing afterwards what was obvious in the moment is how the lesson gets lost. The bug
+you fixed is not a finding — the misconception that let it survive is. Project history never is.
+Nothing to report is the normal case; say nothing then.
 
 ## Rules
 
