@@ -651,7 +651,7 @@ def main(a):
     if c == "init": return cmd_init(a[1] if len(a) > 1 else die("usage: gsdf init <name>"))
     if c in ("-V", "--version", "version"):
         return print("gsdf %s  (%s)" % (VERSION, Path(__file__).resolve()))
-    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt state next phase plans waves conflicts lint context tryit iter quick")
+    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt state next phase plans waves conflicts lint context tryit iter quick verify findings params")
     pl = planning()
     if c == "next": return cmd_next(pl)
     pl = pl or need()
