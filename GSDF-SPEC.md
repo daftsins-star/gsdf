@@ -334,7 +334,38 @@ gsdf iter list <N>                   # print NN-ITERATIONS.md entries
 gsdf iter count <N>                  # integer
 gsdf quick new <slug>                # create .planning/quick/NNN-slug/, print path
 gsdf quick list
+gsdf lint <N>                        # plan gates; exit 1 naming the plan and the problem. Zero plans is a failure
+gsdf conflicts <N>                   # exit 1 if two plans in one wave write the same file
+gsdf verify <N>                      # run config verify, else plan <verify>; exit 0 pass / 1 fail / 2 nothing configured
+gsdf findings <N>                    # FINDING: iteration lines + "## Findings" summary sections
+gsdf params <N> [--write]            # parameter ABI guard; --write re-locks (§5.5)
+gsdf update [--check] [--force]      # compare against GitHub, reinstall when behind (§5.6)
 ```
+
+Flags are never positional: the phase is taken from the first argument that is not a `-` flag,
+so `gsdf params --write` means the current phase rather than a phase called `--write`.
+
+### 5.6 `gsdf update`
+
+Needs no `.planning/` — it is install state, not project state. Compares two signals against
+`GSDF_REPO`/`GSDF_BRANCH` (default `daftsins-star/gsdf@main`):
+
+- `VERSION` in the remote `bin/gsdf`, fetched raw. Moves on a release.
+- the commit in `<install>/bin/gsdf-install.json`, against `git ls-remote`. Moves whenever
+  `main` does, which for an untagged repo is far more often.
+
+Either being ahead offers an update. `--check` reports and writes nothing. An update clones the
+ref shallowly, re-reads `VERSION` from the clone and aborts if it disagrees with what was
+advertised, then runs that release's own `install.sh` with the same scope as the current install
+— so a new command file or template arrives with the CLI, not after it.
+
+The updater writes the receipt itself rather than trusting the `install.sh` it just downloaded:
+that installer comes from the release being installed, so a release that drops the receipt would
+otherwise leave a stale one and mis-report from then on.
+
+It refuses to run inside a GSDF checkout with uncommitted changes or commits not on the branch,
+since installing GitHub's copy there discards the build under development. `--force` overrides,
+and also allows a deliberate downgrade.
 
 ### 5.1 `config.json`
 

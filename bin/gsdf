@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """gsdf - deterministic state tool for GSDF. Filesystem is the source of truth (spec 4a)."""
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 import fcntl, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 from contextlib import contextmanager
 from datetime import datetime, date
@@ -302,9 +302,16 @@ def cmd_lint(pl, p):
         if len(re.findall(r"<task", txt)) > len(re.findall(r"<done>", txt)):
             bad.append("%s: a task has no <done>" % pid)
         if not section(txt, "Try it"): bad.append("%s: no '## Try it' — the user cannot see the result" % pid)
+    # Zero plans is not zero problems. /gsdf:plan runs this as its gate, so a planner
+    # that wrote nothing scored "0 plan(s) pass all gates" and exit 0 -- a green light
+    # on an empty phase, which is the one failure the gate exists to catch.
+    n = len(plans_of(p["dir"], p["prefix"]))
+    if not n:
+        print("phase %s: no PLAN.md files — nothing to execute" % p["prefix"])
+        sys.exit(1)
     for b in bad: print(b)
     if bad: sys.exit(1)
-    print("phase %s: %d plan(s) pass all gates" % (p["prefix"], len(plans_of(p["dir"], p["prefix"]))))
+    print("phase %s: %d plan(s) pass all gates" % (p["prefix"], n))
 
 def cmd_tryit(pl, p):
     files = sorted(p["dir"].glob(p["prefix"] + "-*-SUMMARY.md")) if p["dir"] else []
@@ -646,12 +653,119 @@ def cmd_quick_new(pl, s):
     n = max([int(m.group(1)) for d in q.glob("*") if d.is_dir() and (m := re.match(r"^(\d+)-", d.name))] or [0]) + 1
     d = q / ("%03d-%s" % (n, slug(s))); d.mkdir(); print(d)
 
+# ---------- update ----------
+REPO   = os.environ.get("GSDF_REPO", "https://github.com/daftsins-star/gsdf.git")
+BRANCH = os.environ.get("GSDF_BRANCH", "main")
+
+def install_root():
+    """The .claude/ this CLI was installed into, or None when it runs from a source checkout."""
+    b = Path(__file__).resolve().parent
+    return b.parent if b.name == "bin" and (b.parent / "commands" / "gsdf").is_dir() else None
+def receipt():
+    """Written by install.sh next to the CLI: which commit this install came from.
+
+    Without it only the version STRING can be compared, and a project that ships
+    from main without tagging moves far more often than it bumps VERSION."""
+    try: return json.loads(read(Path(__file__).resolve().parent / "gsdf-install.json") or "{}")
+    except json.JSONDecodeError: return {}
+def vtuple(s): return tuple(int(x) for x in re.findall(r"\d+", s or "")) or (0,)
+def raw_url(path):
+    m = re.search(r"github\.com[:/]+([^/]+?)/([^/]+?)(?:\.git)?/?$", REPO)
+    return m and "https://raw.githubusercontent.com/%s/%s/%s/%s" % (m.group(1), m.group(2), BRANCH, path)
+def remote_version():
+    import urllib.request
+    u = raw_url("bin/gsdf") or die("GSDF_REPO is not a GitHub URL: %s" % REPO)
+    try:
+        with urllib.request.urlopen(u, timeout=20) as r: src = r.read().decode("utf-8", "replace")
+    except Exception as e:
+        die("could not reach GitHub (%s) — check the network, or set GSDF_REPO/GSDF_BRANCH" % e)
+    m = re.search(r'^VERSION\s*=\s*"([^"]+)"', src, re.M)
+    return m.group(1) if m else die("no VERSION in %s — is that a GSDF checkout?" % u)
+def remote_head():
+    try:
+        r = subprocess.run(["git", "ls-remote", REPO, BRANCH], capture_output=True, text=True, timeout=30)
+        return r.stdout.split()[0] if r.returncode == 0 and r.stdout.split() else None
+    except (OSError, subprocess.SubprocessError): return None
+def source_checkout():
+    """A GSDF working copy at or above cwd. Updating there installs GitHub's copy over
+    whatever is being developed locally, so it is worth refusing to do it silently."""
+    for c in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if all((c / x).exists() for x in ("bin/gsdf", "install.sh", "GSDF-SPEC.md")): return c
+    return None
+
+def cmd_update(check=False, force=False):
+    """Compare this install against GitHub, and reinstall from it when it is behind.
+
+    Two signals, because one is not enough: VERSION catches a real release, and the
+    install receipt's commit catches main moving without a version bump. Either is
+    reason to offer an update; neither is acted on silently under --check.
+    """
+    here, rv = receipt().get("commit"), remote_version()
+    rsha = remote_head()
+    print("installed  gsdf %-8s %s" % (VERSION, Path(__file__).resolve()))
+    print("on github  gsdf %-8s %s@%s%s" % (rv, REPO, BRANCH, "  " + rsha[:8] if rsha else ""))
+    newer, moved = vtuple(rv) > vtuple(VERSION), bool(rsha and here and rsha != here)
+
+    if vtuple(rv) < vtuple(VERSION):
+        print("\nthis install is NEWER than %s. Not touching it — `--force` installs %s anyway." % (BRANCH, rv))
+        if not force: return 0
+    elif newer:   print("\nupdate available: %s -> %s" % (VERSION, rv))
+    elif moved:   print("\nsame version, but %s has moved since this was installed (%s -> %s)." % (BRANCH, here[:8], rsha[:8]))
+    elif force:   print("\nup to date — reinstalling anyway (--force).")
+    else:
+        print("\nup to date." + ("" if here else
+              "\nNo install receipt, so only the version string could be compared."
+              "\n`gsdf update --force` reinstalls and writes one."))
+        return 0
+    if check: return print("--check: nothing was written.") or 0
+
+    sc = source_checkout()
+    if sc and not force:
+        dirty = subprocess.run(["git", "status", "--porcelain"], cwd=sc, capture_output=True, text=True).stdout.strip()
+        head  = subprocess.run(["git", "rev-parse", "HEAD"], cwd=sc, capture_output=True, text=True).stdout.strip()
+        if dirty or (rsha and head and head != rsha):
+            die("refusing: %s is a GSDF checkout with %s.\n"
+                "Updating copies GitHub over it, discarding the build installed from here.\n"
+                "  ./install.sh --global   installs THIS tree\n"
+                "  gsdf update --force     takes GitHub's"
+                % (sc, "uncommitted changes" if dirty else "commits not on %s" % BRANCH))
+
+    tmp = tempfile.mkdtemp(prefix="gsdf-update-")
+    try:
+        r = subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--branch", BRANCH, REPO, tmp + "/src"],
+                           capture_output=True, text=True, timeout=300)
+        if r.returncode: die("clone failed: %s" % ((r.stderr.strip().splitlines() or [""])[-1]))
+        src = Path(tmp) / "src"
+        got = re.search(r'^VERSION\s*=\s*"([^"]+)"', read(src / "bin" / "gsdf"), re.M)
+        # The raw file and the clone are two fetches of the same ref. If they disagree,
+        # something moved mid-update; better to stop than to install a surprise.
+        if not got or got.group(1) != rv:
+            die("the clone says %s but %s advertised %s — refusing to install" % (got and got.group(1), BRANCH, rv))
+        root = install_root()
+        args = ["--global"] if (root is None or root == Path.home() / ".claude") else [str(root.parent)]
+        print()
+        sys.stdout.flush()   # install.sh writes straight to the fd; unflushed prints land after it
+        if subprocess.run(["bash", str(src / "install.sh")] + args).returncode:
+            die("install.sh failed — nothing is half-written, it copies rather than patches")
+        # Write the receipt HERE, not only in install.sh. The install.sh that just ran came
+        # from the release being installed, so relying on it means any release that drops or
+        # breaks the receipt leaves a stale one — and update then mis-reports for good.
+        sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=src, capture_output=True, text=True).stdout.strip()
+        (Path(__file__).resolve().parent / "gsdf-install.json").write_text(json.dumps(
+            {"version": rv, "commit": sha or (rsha or "unknown"), "source": REPO + "@" + BRANCH,
+             "installed": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")}, indent=2) + "\n", encoding="utf-8")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    print("\nupdated to gsdf %s. Restart Claude Code to pick up the new commands." % rv)
+    return 0
+
 def main(a):
     c = a[0] if a else "next"
     if c == "init": return cmd_init(a[1] if len(a) > 1 else die("usage: gsdf init <name>"))
     if c in ("-V", "--version", "version"):
         return print("gsdf %s  (%s)" % (VERSION, Path(__file__).resolve()))
-    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt state next phase plans waves conflicts lint context tryit iter quick verify findings params")
+    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt update state next phase plans waves conflicts lint context tryit iter quick verify findings params")
+    if c == "update": sys.exit(cmd_update("--check" in a, "--force" in a))
     pl = planning()
     if c == "next": return cmd_next(pl)
     pl = pl or need()
@@ -694,7 +808,11 @@ def main(a):
         if s == "list": return print("\n".join(iter_lines(p)))
         if s == "count": return print(len(iter_lines(p)))
         die("unknown: gsdf iter %s" % s)
-    p = find(pl, a[1] if len(a) > 1 else None)
+    # Resolve the phase from the first POSITIONAL argument. Taking a[1] blindly made
+    # `gsdf params --write` die with "bad phase: --write" -- and that is the exact
+    # command cmd_params prints when the ABI check fails.
+    pos = [x for x in a[1:] if not x.startswith("-")]
+    p = find(pl, pos[0] if pos else None)
     if c == "plans": return print(json.dumps([{k: v for k, v in x.items() if k != "has_depends"} for x in plans_of(p["dir"], p["prefix"])], indent=2))
     if c == "waves": return print(json.dumps(waves(plans_of(p["dir"], p["prefix"]))))
     if c == "conflicts": return cmd_conflicts(pl, p)

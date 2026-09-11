@@ -39,6 +39,24 @@ touching entries you already have.
 installer runs `gsdf adopt`: it merges the config keys it needs, leaves every other key alone,
 reports where the project stands, and writes nothing under `phases/`.
 
+### Staying current
+
+```bash
+gsdf update --check   # compare this install against GitHub, write nothing
+gsdf update           # reinstall from GitHub if it is ahead
+```
+
+It compares two things, because the version string alone is not enough: `VERSION`, which moves
+on a release, and the commit recorded in the install receipt, which moves whenever `main` does.
+Either being ahead offers an update; neither is acted on under `--check`. It reinstalls the way
+you installed — global or project — by running that release's own `install.sh`, so a new command
+file or template arrives with the CLI rather than after it.
+
+It refuses to run inside a GSDF checkout that has uncommitted changes or commits not on `main`,
+because installing GitHub's copy there would quietly discard the build you are developing. Use
+`./install.sh --global` to install that tree, or `gsdf update --force` to take GitHub's anyway.
+`GSDF_REPO` and `GSDF_BRANCH` point it at a fork.
+
 ## The eleven commands
 
 | | | Spawns |
@@ -130,7 +148,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~711 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~829 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out.
 
 ```bash
@@ -148,7 +166,10 @@ gsdf verify 2            # runs the phase's verify commands; exits non-zero on f
 gsdf findings 2          # what the phase captured as reusable, for approve to collate
 gsdf params 2            # parameter ABI guard: removal, reorder and id reuse all fail.
                          #   Advisory until abi_frozen: true — before a release you want churn
-gsdf lint 2              # exits 1 if a plan is not executable, naming the plan and why
+gsdf lint 2              # exits 1 if a plan is not executable, naming the plan and why.
+                         #   A phase with no plans at all fails too — an empty phase is
+                         #   the one thing the gate exists to catch
+gsdf update              # check GitHub, reinstall if it is ahead (--check to look only)
 ```
 
 Every read subcommand is pure — the test suite asserts `git status` is clean after all of them.

@@ -36,6 +36,14 @@ cp -R "$SRC/.claude/skills/gsdf-templates" "$DEST/skills/"
 cp "$SRC/bin/gsdf" "$DEST/bin/gsdf"
 chmod +x "$DEST/bin/gsdf"
 
+# Receipt: which commit this install came from, so `gsdf update` can tell "same version,
+# main has moved" from "genuinely up to date". A repo that ships from main without tagging
+# moves far more often than it bumps VERSION, and the version string alone would miss it.
+SHA="$(git -C "$SRC" rev-parse HEAD 2>/dev/null || echo unknown)"
+VER="$(sed -n 's/^VERSION *= *"\(.*\)"/\1/p' "$SRC/bin/gsdf" | head -1)"
+printf '{\n  "version": "%s",\n  "commit": "%s",\n  "source": "%s",\n  "installed": "%s"\n}\n' \
+  "$VER" "$SHA" "$SRC" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$DEST/bin/gsdf-install.json"
+
 # A global install has no project-relative .claude/bin/gsdf, so rewrite the CLI path in the
 # installed copies rather than relying on every agent noticing a fallback sentence.
 if [ "$GLOBAL" = 1 ]; then

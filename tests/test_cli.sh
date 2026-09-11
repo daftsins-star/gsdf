@@ -300,7 +300,7 @@ echo "$OUT" | grep -q "DECISION" && bad "findings picked up a DECISION" "only FI
 mkdir -p "$T/.planning/phases/01-x"
 printf -- '- 10:02 — did a thing [source/Proc.{h,cpp}, ui/App.tsx]\n' \
   >> "$T/.planning/phases/01-x/01-ITERATIONS.md"
-OUT=$(cd "$T" && python3 - <<'PY'
+OUT=$(cd "$T" && GSDF_BIN="$GSDF" python3 - <<'PY'
 import importlib.util, os
 from pathlib import Path
 g = importlib.util.module_from_spec(importlib.util.spec_from_loader('g', None))
@@ -343,7 +343,50 @@ printf '{"verify":{}}' > .planning/config.json
 OUT=$("$GSDF" params 1 2>&1 || true)
 case "$OUT" in *"not enforced"*) ok "advisory until abi_frozen";;
               *) bad "abi_frozen gate" "advisory" "$OUT";; esac
-cd - >/dev/null; rm -rf "$T"
+cd "$ROOT"; rm -rf "$T"
+
+echo "== 12d. flags never get parsed as a phase number =="
+T=$(mktemp -d); mkdir -p "$T/.planning/phases" "$T/source"
+printf '{"verify":{}}' > "$T/.planning/config.json"
+printf '# Roadmap\n\n### Phase 1: X\n**Goal**: x\n' > "$T/.planning/ROADMAP.md"
+printf 'ParameterID { "gain", 1 }\n' > "$T/source/P.cpp"
+cd "$T"
+# cmd_params prints "re-lock with `gsdf params --write`" on failure, so that exact
+# command must work. It used to die with "bad phase: --write".
+OUT=$("$GSDF" params --write 2>&1); RC=$?
+is "params --write needs no phase number" "$RC" "0"
+has "params --write wrote the lock" "$OUT" "1 parameter(s)"
+cd "$ROOT"; rm -rf "$T"
+
+echo "== 12e. lint fails a phase with no plans =="
+T=$(mktemp -d); mkdir -p "$T/.planning/phases/01-x"
+printf '# Roadmap\n\n### Phase 1: X\n**Goal**: x\n' > "$T/.planning/ROADMAP.md"
+cd "$T"
+OUT=$("$GSDF" lint 1 2>&1); RC=$?
+is "lint exits 1 when the planner wrote nothing" "$RC" "1"
+has "lint says why" "$OUT" "no PLAN.md files"
+cd "$ROOT"; rm -rf "$T"
+
+echo "== 12f. gsdf update (offline parts only) =="
+OUT=$(GSDF_REPO="https://example.com/not/github" "$GSDF" update --check 2>&1); RC=$?
+is "non-GitHub remote exits non-zero" "$RC" "1"
+has "non-GitHub remote is one clear line" "$OUT" "not a GitHub URL"
+is "that error is one line" "$(printf '%s' "$OUT" | wc -l | tr -d ' ')" "0"
+OUT=$(GSDF_BIN="$GSDF" python3 - <<'PY2'
+import importlib.util, os
+g = importlib.util.module_from_spec(importlib.util.spec_from_loader('g', None))
+exec(compile(open(os.environ["GSDF_BIN"]).read().split("if __name__")[0], 'g', 'exec'), g.__dict__)
+print("cmp", g.vtuple("1.10.0") > g.vtuple("1.9.0"), g.vtuple("1.0.0") > g.vtuple("1.0.0"))
+print("url", g.raw_url("bin/gsdf"))
+PY2
+)
+has "1.10.0 sorts above 1.9.0, not below" "$OUT" "cmp True False"
+has "raw url is derived from the .git remote" "$OUT" "raw.githubusercontent.com/daftsins-star/gsdf/main/bin/gsdf"
+# update must work with no .planning/ -- it is not project state
+cd "$FIX/empty"
+OUT=$(GSDF_REPO="https://example.com/not/github" "$GSDF" update --check 2>&1)
+hasnt "update does not demand a .planning/" "$OUT" "no .planning/ found"
+cd "$ROOT"
 
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
