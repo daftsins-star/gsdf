@@ -314,6 +314,37 @@ echo "$OUT" | grep -q "source/Proc.h" && echo "$OUT" | grep -q "source/Proc.cpp"
   || bad "phase_files brace expansion" "source/Proc.h and .cpp" "$OUT"
 rm -rf "$T"
 
+echo "== 12c. parameter ABI guard =="
+T=$(mktemp -d); mkdir -p "$T/.planning/phases" "$T/source"
+printf '{"verify":{},"abi_frozen":true}' > "$T/.planning/config.json"
+printf '# Roadmap\n\n### Phase 1: X\n**Goal**: x\n' > "$T/.planning/ROADMAP.md"
+printf 'ParameterID { "gain", 1 }\nParameterID { "mix", 1 }\n' > "$T/source/P.cpp"
+cd "$T"; "$GSDF" params 1 >/dev/null 2>&1
+# macOS is case-insensitive: "source" and "Source" are one directory but resolve to
+# different strings, so a path-keyed de-dup counted every parameter twice.
+N=$(python3 -c "import json;print(len(json.load(open('.planning/params.lock'))))")
+is "params.lock counts each parameter once" "$N" "2"
+"$GSDF" params 1 >/dev/null 2>&1; is "unchanged ABI passes" "$?" "0"
+python3 - <<'PY'
+import json, pathlib
+f = pathlib.Path('.planning/params.lock'); d = json.loads(f.read_text())
+d[0], d[1] = d[1], d[0]; f.write_text(json.dumps(d))
+PY
+"$GSDF" params 1 >/dev/null 2>&1; is "reordered ABI fails" "$?" "1"
+python3 - <<'PY'
+import json, pathlib
+pathlib.Path('.planning/params.lock').write_text(json.dumps(
+    [{'id':'gain','version':1},{'id':'mix','version':1},{'id':'gone','version':1}]))
+PY
+OUT=$("$GSDF" params 1 2>&1 || true)
+case "$OUT" in *REMOVED*) ok "removed parameter is reported";;
+              *) bad "removed parameter" "REMOVED" "$OUT";; esac
+printf '{"verify":{}}' > .planning/config.json
+OUT=$("$GSDF" params 1 2>&1 || true)
+case "$OUT" in *"not enforced"*) ok "advisory until abi_frozen";;
+              *) bad "abi_frozen gate" "advisory" "$OUT";; esac
+cd - >/dev/null; rm -rf "$T"
+
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
 S=$(python3 -c "

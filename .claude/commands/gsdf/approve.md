@@ -39,6 +39,13 @@ GSD summaries don't), add it at the end.
 **3. Promote decisions.** Every logged line beginning `DECISION:` becomes
 `gsdf state note "<the line without the prefix>"`. These outlive the phase — that's the point.
 
+**2a. Guard the parameter ABI.** `gsdf params N`. Silent and advisory until
+`abi_frozen: true` is set in `config.json` — before a release, churn is what you want. After
+one, a removed or reordered parameter id silently repoints every automation lane in every
+saved session, and the damage surfaces months later in someone else's project. Non-zero:
+**stop**, say which id, and offer the migrate-on-load fix. A deliberate break re-locks with
+`gsdf params N --write`.
+
 **3a. Collate the findings — `NN-FINDINGS.md`.** `gsdf findings N` prints what was captured
 as it happened: iteration lines prefixed `FINDING:`, and `## Findings` sections from plan
 summaries. Judged by whoever was there — collate, do not re-read the phase and guess.
@@ -88,7 +95,7 @@ session, and it must leave the tree clean — verify with `git status --porcelai
 
 ```
 Approved phase NN — <k> iterations, commit <hash>.
-Verified: build ✅  test ✅  ui ✅
+Verified: <paste gsdf verify's own summary line — never a tick you typed yourself>
 Findings: <n> collated (or "none — nothing reusable")
 Next: <NN+1> <slug>
 Next: `/gsdf:discuss <NN+1>` or `/gsdf:plan <NN+1>`.

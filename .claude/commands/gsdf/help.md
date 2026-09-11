@@ -24,6 +24,14 @@ GSDF — Get Shit Done Fast
   /gsdf:resume [N]      Restore a paused session from its handoff.           0 spawns.
   /gsdf:help            This.
 
+  The CLI, read-only unless it says otherwise:
+  gsdf next / state / progress   Where things stand.
+  gsdf verify N                  Run the phase's checks. Exit 2 = nothing configured,
+                                 so an unverified phase can't be reported as passing.
+  gsdf findings N                What the phase captured as reusable.
+  gsdf params N [--write]        Parameter ABI guard: removal, reorder, id reuse.
+                                 Advisory until `abi_frozen: true` in config.json.
+
 Iterate mode is where the time goes, and it costs nothing. After execute, just say what you
 want changed — "knob's too small", "default should be -6 dB" — and it gets edited inline, no
 plan, no subagent. Say "approved" when it's right.

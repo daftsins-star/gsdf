@@ -130,7 +130,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~633 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~711 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out.
 
 ```bash
@@ -146,6 +146,8 @@ gsdf verify 2            # runs the phase's verify commands; exits non-zero on f
                          #   Runs plugin_validate only if the phase touched non-UI
                          #   source — a host validator after a CSS change is ceremony
 gsdf findings 2          # what the phase captured as reusable, for approve to collate
+gsdf params 2            # parameter ABI guard: removal, reorder and id reuse all fail.
+                         #   Advisory until abi_frozen: true — before a release you want churn
 gsdf lint 2              # exits 1 if a plan is not executable, naming the plan and why
 ```
 

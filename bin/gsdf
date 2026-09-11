@@ -436,6 +436,83 @@ def phase_files(pl, p):
     return sorted(out)
 
 
+PARAM_RE = re.compile(r'ParameterID\s*\{?\s*"([^"]+)"\s*,\s*(\d+)')
+
+def scan_params(root):
+    """Every juce::ParameterID in declaration order, as [(id, version), ...]."""
+    out, seen = [], set()
+    for d in ("source", "Source", "src", "plugin", "dsp"):
+        base = root / d
+        # De-duplicate by INODE, not by path. macOS is case-insensitive, so "source"
+        # and "Source" are one directory — but resolve() keeps whichever case you
+        # asked for, so the two produce different strings and a path-keyed set lets
+        # both through. Scanning it twice counted every parameter twice, which would
+        # have read as phantom duplicate ids in the lock file.
+        if not base.is_dir():
+            continue
+        st = base.stat()
+        if (st.st_dev, st.st_ino) in seen:
+            continue
+        seen.add((st.st_dev, st.st_ino))
+        for f in sorted(base.rglob("*.cpp")) + sorted(base.rglob("*.h")):
+            fs = f.stat()
+            if (fs.st_dev, fs.st_ino) in seen:
+                continue
+            seen.add((fs.st_dev, fs.st_ino))
+            for m in PARAM_RE.finditer(read(f)):
+                out.append((m.group(1), int(m.group(2))))
+    return out
+
+
+def cmd_params(pl, p, write=False):
+    """Guard the parameter ABI: order is the contract, and removal is forever.
+
+    The vault lesson this mechanises: parameter ORDER is an ABI, so reordering or
+    removing one silently repoints every automation lane in every saved session --
+    and the damage arrives months later, in someone else's project, looking like
+    anything but a rename. Retired ids must never be reused either.
+
+    Off until a release exists (`abi_frozen: true` in config.json): before you ship,
+    churn is exactly what you want.
+    """
+    root = pl.parent
+    cur = scan_params(root)
+    lock_f = pl / "params.lock"
+    if write or not lock_f.exists():
+        lock_f.write_text(json.dumps([{"id": i, "version": v} for i, v in cur], indent=1) + "\n")
+        print("wrote %s — %d parameter(s)" % (lock_f, len(cur)))
+        return 0
+    if not config(pl).get("abi_frozen"):
+        print("abi_frozen is not set in config.json — %d parameter(s), not enforced.\n"
+              "Set it when the first release ships; before that, churn is fine." % len(cur))
+        return 0
+    old = [(x["id"], x["version"]) for x in json.loads(read(lock_f))]
+    oi, ci = [i for i, _ in old], [i for i, _ in cur]
+    bad = []
+    for i in oi:
+        if i not in ci:
+            bad.append("REMOVED  %s — every saved session's automation for it is orphaned" % i)
+    common_old = [i for i in oi if i in ci]
+    common_new = [i for i in ci if i in oi]
+    if common_old != common_new:
+        bad.append("REORDERED — was %s, now %s. Order is the ABI: hosts address parameters "
+                   "by index, so this repoints existing automation lanes." % (common_old, common_new))
+    for i in ci:
+        if i not in oi:
+            hit = subprocess.run(["git", "log", "-p", "-S", '"%s"' % i, "--oneline", "-1"],
+                                 capture_output=True, text=True, cwd=root).stdout.strip()
+            if hit and i not in oi:
+                bad.append("REUSED   %s appeared in history before — a retired id must never "
+                           "come back with a new meaning (%s)" % (i, hit.splitlines()[0][:60]))
+    if bad:
+        print("parameter ABI broken:")
+        for b in bad: print("  " + b)
+        print("\nIf this is deliberate, migrate on load and re-lock with `gsdf params --write`.")
+        return 1
+    print("parameter ABI intact — %d parameter(s), order and ids unchanged" % len(cur))
+    return 0
+
+
 def cmd_verify(pl, p):
     """Run the phase's verification and report honestly. Exit non-zero on failure.
 
@@ -626,6 +703,7 @@ def main(a):
     if c == "tryit": return cmd_tryit(pl, p)
     if c == "verify": sys.exit(cmd_verify(pl, p))
     if c == "findings": return cmd_findings(pl, p)
+    if c == "params": sys.exit(cmd_params(pl, p, "--write" in a))
     die("unknown subcommand: %s (try `gsdf help`)" % c)
 
 if __name__ == "__main__":
