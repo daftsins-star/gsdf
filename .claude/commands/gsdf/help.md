@@ -31,6 +31,8 @@ GSDF — Get Shit Done Fast
   gsdf findings N                What the phase captured as reusable.
   gsdf params N [--write]        Parameter ABI guard: removal, reorder, id reuse.
                                  Advisory until `abi_frozen: true` in config.json.
+  gsdf update [--check]          Compare this install against GitHub and reinstall
+                                 when it is behind. --check writes nothing.
 
 Iterate mode is where the time goes, and it costs nothing. After execute, just say what you
 want changed — "knob's too small", "default should be -6 dB" — and it gets edited inline, no

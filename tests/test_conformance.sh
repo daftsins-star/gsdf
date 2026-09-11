@@ -93,6 +93,21 @@ CLI=$(wc -l < bin/gsdf | tr -d ' ')
 DOC=$(grep -oE '~[0-9]+ lines of stdlib Python' README.md | grep -oE '[0-9]+')
 [ "$DOC" -ge $((CLI - 30)) ] && [ "$DOC" -le $((CLI + 30)) ] && ok "README CLI line count is current ($DOC vs $CLI)" \
   || bad "README CLI line count" "says ~$DOC, actual $CLI"
+# Every "measured" number in the README is a claim that rots. The line count was already
+# guarded; these three had each drifted by the time anyone looked.
+AM=$(cat .claude/commands/gsdf/*.md .claude/agents/gsdf-*.md | wc -l | tr -d ' ')
+DM=$(printf '%s' "$(grep -oE '\| Lines of command \+ agent markdown \|.*\*\*([0-9,]+)\*\*' README.md)" | grep -oE '\*\*[0-9,]+\*\*$' | tr -d '*,')
+[ -n "$DM" ] && [ "$DM" -ge $((AM - 40)) ] && [ "$DM" -le $((AM + 40)) ] \
+  && ok "README command+agent line count is current ($DM vs $AM)" \
+  || bad "README command+agent line count" "says $DM, actual $AM"
+for agent in executor planner; do   # not $A: that is the agents dir, used further down
+  AL=$(wc -l < "$A/gsdf-$agent.md" | tr -d ' ')
+  has "README states gsdf-$agent.md line count ($AL)" "$(cat README.md)" "**$AL**"
+done
+CT=$(cd tests/fixtures/original-midphase && "$ROOT/bin/gsdf" context 02 | wc -w | tr -d ' ')
+CT=$((CT * 13 / 10))
+has "README states the measured context token count ($CT)" "$(cat README.md)" "~**$CT tokens**"
+
 for s in $(bin/gsdf help | tail -1 | sed 's/Subcommands: //'); do
   case "$s" in init|adopt|state|plans|quick) ;; *)
     has "README documents 'gsdf $s'" "$(cat README.md)" "gsdf $s" ;;

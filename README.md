@@ -148,13 +148,13 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~829 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~881 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out.
 
 ```bash
 gsdf next                # plan 03 | execute 02 | iterate 02 | milestone-done | new-project
 gsdf phase list          # table: phase, slug, status, plans, done, iterations
-gsdf context 2           # exactly what the planner is given — ~560 tokens, not 15k
+gsdf context 2           # exactly what the planner is given — ~631 tokens, not 15k
 gsdf tryit 2             # how to see the work, and what needs a human eye
 gsdf iter log 2 "..."    # one line per accepted change
 gsdf waves 2             # [["01"], ["02"]]
@@ -167,8 +167,10 @@ gsdf findings 2          # what the phase captured as reusable, for approve to c
 gsdf params 2            # parameter ABI guard: removal, reorder and id reuse all fail.
                          #   Advisory until abi_frozen: true — before a release you want churn
 gsdf lint 2              # exits 1 if a plan is not executable, naming the plan and why.
-                         #   A phase with no plans at all fails too — an empty phase is
-                         #   the one thing the gate exists to catch
+                         #   Also catches the two failures that are silent otherwise: a
+                         #   phase with no plans at all, and a circular depends_on — which
+                         #   waves() would emit as one parallel wave, the opposite of
+                         #   what those plans declared
 gsdf update              # check GitHub, reinstall if it is ahead (--check to look only)
 ```
 
@@ -183,9 +185,9 @@ figure taken from the same real project (a JUCE gain plugin scaffolded by `/gsdf
 |---|---|---|---|
 | Commands | 29 | 72 | **11** |
 | Agents | 12 | 64 | **2** |
-| Lines of command + agent markdown | 16,423 | 26,785 | **978** |
+| Lines of command + agent markdown | 16,423 | 26,785 | **1,060** |
 | Description text loaded every turn | 1,880 chars | 5,349 chars | **498 chars** |
-| Context handed to the planner | ~3,572 tokens<sup>†</sup> | ~3,572 tokens<sup>†</sup> | **978 tokens** |
+| Context handed to the planner | ~3,572 tokens<sup>†</sup> | ~3,572 tokens<sup>†</sup> | **631 tokens** |
 | Subagents per 2-plan phase | 6–8 | 6–10 | **3** |
 | Subagents during review/iteration | 1+ per fix | 1+ per fix | **0** |
 
@@ -224,10 +226,10 @@ Measured on the test fixtures:
 
 | | |
 |---|---|
-| `gsdf context N` | **26 ms**, ~**560 tokens** (budget: 100 ms, 2,500 tokens) |
+| `gsdf context N` | **37 ms**, ~**631 tokens** (budget: 100 ms, 2,500 tokens) |
 | Subagents per 2-plan phase | **3** — one planner, two executors. Iterate and approve add none. |
 | Command descriptions, all 11 | **498 characters** total (loaded every turn; budget 550) |
-| `gsdf-executor.md` / `gsdf-planner.md` | **59** / **102** lines |
+| `gsdf-executor.md` / `gsdf-planner.md` | **86** / **113** lines |
 
 **The end-to-end wall-clock comparison has not been run.** It needs a real interactive session —
 `/gsdf:new-project` through `approved` on a scratch project — which can't be produced from a

@@ -27,6 +27,18 @@ the resolved path — check it when something behaves like the version you just 
 The same applies to agents: `gsdf-planner.md` and `gsdf-executor.md` are read at *spawn* time, so
 a subagent already running has the old definition. Finish the run, reinstall, then re-run.
 
+### `gsdf update` is for users, not for you
+
+`./install.sh --global` is the loop above. `gsdf update` does something different: it installs
+**GitHub's** copy over your global install, which here means discarding the build you are
+developing. It refuses to do that from a checkout with uncommitted changes or commits not on
+`main`, and names both ways out — but the refusal is a guard, not a workflow. While working in
+this repo, reinstall; never update.
+
+It also reads and writes its receipt at the install it acts on (`~/.claude/bin/gsdf-install.json`),
+not next to `bin/gsdf` — so running `./bin/gsdf update` from this checkout leaves no untracked
+file behind, and the install it actually replaced is the one whose receipt gets stamped.
+
 ## Bootstrapping GSDF's own `.planning/`
 
 This repo ships without one, deliberately — the tests must not depend on it.

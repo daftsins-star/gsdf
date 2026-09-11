@@ -334,7 +334,8 @@ gsdf iter list <N>                   # print NN-ITERATIONS.md entries
 gsdf iter count <N>                  # integer
 gsdf quick new <slug>                # create .planning/quick/NNN-slug/, print path
 gsdf quick list
-gsdf lint <N>                        # plan gates; exit 1 naming the plan and the problem. Zero plans is a failure
+gsdf lint <N>                        # plan gates; exit 1 naming the plan and the problem. Zero plans,
+                                     #   a self-dependency and a circular depends_on all fail
 gsdf conflicts <N>                   # exit 1 if two plans in one wave write the same file
 gsdf verify <N>                      # run config verify, else plan <verify>; exit 0 pass / 1 fail / 2 nothing configured
 gsdf findings <N>                    # FINDING: iteration lines + "## Findings" summary sections
@@ -343,7 +344,13 @@ gsdf update [--check] [--force]      # compare against GitHub, reinstall when be
 ```
 
 Flags are never positional: the phase is taken from the first argument that is not a `-` flag,
-so `gsdf params --write` means the current phase rather than a phase called `--write`.
+so `gsdf params --write` means the current phase rather than a phase called `--write`. An
+unrecognised flag is an error — `gsdf context --phase 2` must not quietly print the current
+phase and look like it worked.
+
+`waves` breaks a dependency deadlock by emitting the survivors as one layer, so a cycle would
+otherwise become a *parallel* wave. `lint` is where that is caught, because `/gsdf:plan` can
+still act on it there.
 
 ### 5.6 `gsdf update`
 

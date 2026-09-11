@@ -388,6 +388,55 @@ OUT=$(GSDF_REPO="https://example.com/not/github" "$GSDF" update --check 2>&1)
 hasnt "update does not demand a .planning/" "$OUT" "no .planning/ found"
 cd "$ROOT"
 
+echo "== 12g. dependency cycles never become a parallel wave =="
+T=$(mktemp -d); mkdir -p "$T/.planning/phases/01-a"
+printf '# Roadmap\n\n### Phase 1: A\n' > "$T/.planning/ROADMAP.md"
+mkplan() {  # mkplan <id> <depends_on>
+  printf -- '---\nphase: 01\nplan: %s\ndepends_on: [%s]\nestimated_tokens: 5000\nrequirements: [REQ-1]\n---\n# p\n<task><verify>true</verify><fails_when>x</fails_when><done>y</done></task>\n## Try it\nrun it\n' \
+    "$1" "$2" > "$T/.planning/phases/01-a/01-$1-PLAN.md"
+}
+cd "$T"
+mkplan 01 01-02; mkplan 02 01-01
+OUT=$("$GSDF" lint 1 2>&1); RC=$?
+is "lint exits 1 on a circular depends_on" "$RC" "1"
+has "lint names the cycle" "$OUT" "circular depends_on among 01, 02"
+# waves() breaks the deadlock by emitting one layer, which is exactly why lint must catch it
+is "waves still terminates on a cycle" "$("$GSDF" waves 1)" '[["01", "02"]]'
+rm "$T/.planning/phases/01-a/01-02-PLAN.md"; mkplan 01 01-01
+has "lint catches a self-dependency" "$("$GSDF" lint 1 2>&1)" "depends_on lists itself"
+mkplan 01 ""; mkplan 02 01-01
+OUT=$("$GSDF" lint 1 2>&1); RC=$?
+is "a real dependency chain still passes" "$RC" "0"
+is "and still orders into two waves" "$("$GSDF" waves 1)" '[["01"], ["02"]]'
+cd "$ROOT"; rm -rf "$T"
+
+echo "== 12h. an unknown flag is an error, not a silent current-phase =="
+cd "$FIX/original-midphase"
+OUT=$("$GSDF" context --phase 2 2>&1); RC=$?
+is "unknown option exits non-zero" "$RC" "1"
+has "unknown option names the flag" "$OUT" "unknown option: --phase"
+hasnt "unknown option did not print a phase" "$OUT" "## Project"
+cd "$ROOT"
+
+echo "== 12i. the update receipt follows the install, not the CLI file =="
+OUT=$(GSDF_BIN="$GSDF" python3 - <<'PY2'
+import importlib.util, os
+from pathlib import Path
+g = importlib.util.module_from_spec(importlib.util.spec_from_loader('g', None))
+src = open(os.environ["GSDF_BIN"]).read().split("if __name__")[0]
+g.__dict__["__file__"] = os.environ["GSDF_BIN"]
+exec(compile(src, 'g', 'exec'), g.__dict__)
+# Run from a source checkout: install_root() is None, so the receipt must name the
+# GLOBAL install -- not bin/ inside the repo, which would be untracked junk AND would
+# leave the install that was actually updated holding a stale receipt.
+print("root", g.install_root())
+print("receipt", g.receipt_file())
+PY2
+)
+has "a source checkout has no install root" "$OUT" "root None"
+has "receipt targets the global install" "$OUT" "receipt $HOME/.claude/bin/gsdf-install.json"
+hasnt "receipt is never written inside the repo" "$OUT" "$ROOT/bin/gsdf-install.json"
+
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
 S=$(python3 -c "

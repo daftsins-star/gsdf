@@ -137,6 +137,22 @@ def waves(plans):
         return [sorted(g[k]) for k in sorted(g)]
     return [[i] for i in ids]
 
+def dep_cycle(plans):
+    """Plan ids that can never be scheduled, because each waits on another that also waits.
+
+    waves() breaks that deadlock by emitting the survivors as one layer -- which silently
+    turns a circular dependency into a PARALLEL wave, the exact opposite of what the plans
+    declared. Detecting it belongs in lint, where /gsdf:plan can still act on it."""
+    ids = {p["id"] for p in plans}
+    if not plans or not all(p["has_depends"] for p in plans): return []
+    rem = {p["id"]: (set(p["depends_on"]) & ids) - {p["id"]} for p in plans}
+    while rem:
+        free = [i for i, d in rem.items() if not d]
+        if not free: return sorted(rem)
+        for i in free: rem.pop(i)
+        for d in rem.values(): d -= set(free)
+    return []
+
 @contextmanager
 def locked(pl):
     """Serialise read-modify-write on .planning/. An orchestrator fires independent Bash calls
@@ -288,7 +304,16 @@ def cmd_lint(pl, p):
     """The gates /gsdf:plan applies before an executor ever sees a plan. Prose checks get
     skipped; a command does not. Exit 1 and name the plan and the problem."""
     bad = []
-    for x in plans_of(p["dir"], p["prefix"]):
+    pls = plans_of(p["dir"], p["prefix"])
+    for x in pls:
+        if x["id"] in x["depends_on"]:
+            bad.append("%s-%s: depends_on lists itself" % (p["prefix"], x["id"]))
+    cyc = dep_cycle(pls)
+    if cyc:
+        bad.append("%s: circular depends_on among %s — nothing can go first, so waves() emits "
+                   "them as one parallel wave, which is the opposite of what they declared"
+                   % (p["prefix"], ", ".join(cyc)))
+    for x in pls:
         f, txt = Path(x["file"]), read(x["file"])
         fm, pid = frontmatter(txt), "%s-%s" % (p["prefix"], x["id"])
         try: est = int(re.sub(r"\D", "", fm.get("estimated_tokens", "")) or 0)
@@ -305,7 +330,7 @@ def cmd_lint(pl, p):
     # Zero plans is not zero problems. /gsdf:plan runs this as its gate, so a planner
     # that wrote nothing scored "0 plan(s) pass all gates" and exit 0 -- a green light
     # on an empty phase, which is the one failure the gate exists to catch.
-    n = len(plans_of(p["dir"], p["prefix"]))
+    n = len(pls)
     if not n:
         print("phase %s: no PLAN.md files — nothing to execute" % p["prefix"])
         sys.exit(1)
@@ -661,12 +686,21 @@ def install_root():
     """The .claude/ this CLI was installed into, or None when it runs from a source checkout."""
     b = Path(__file__).resolve().parent
     return b.parent if b.name == "bin" and (b.parent / "commands" / "gsdf").is_dir() else None
+def update_dest():
+    """The install `gsdf update` acts on, and therefore where the receipt lives.
+
+    A CLI run straight out of a source checkout (`./bin/gsdf`) belongs to no install, so
+    it targets the global one. Deriving the receipt path from __file__ instead would drop
+    an untracked file in the repo AND leave the install it actually updated holding a
+    stale receipt -- which is the one thing the receipt exists to prevent."""
+    return install_root() or (Path.home() / ".claude")
+def receipt_file(): return update_dest() / "bin" / "gsdf-install.json"
 def receipt():
-    """Written by install.sh next to the CLI: which commit this install came from.
+    """Written at install time beside the installed CLI: which commit it came from.
 
     Without it only the version STRING can be compared, and a project that ships
     from main without tagging moves far more often than it bumps VERSION."""
-    try: return json.loads(read(Path(__file__).resolve().parent / "gsdf-install.json") or "{}")
+    try: return json.loads(read(receipt_file()) or "{}")
     except json.JSONDecodeError: return {}
 def vtuple(s): return tuple(int(x) for x in re.findall(r"\d+", s or "")) or (0,)
 def raw_url(path):
@@ -700,9 +734,18 @@ def cmd_update(check=False, force=False):
     install receipt's commit catches main moving without a version bump. Either is
     reason to offer an update; neither is acted on silently under --check.
     """
-    here, rv = receipt().get("commit"), remote_version()
-    rsha = remote_head()
+    r = receipt()
+    here, rv = r.get("commit"), remote_version()
+    # Where this install came from decides what a commit mismatch MEANS. Installed from
+    # GitHub, a different sha means behind. Installed from a local checkout, it usually
+    # means ahead -- and "updating" would revert the build being developed.
+    from_git = str(r.get("source", "")).startswith(("http", "git@", "ssh://"))
+    rsha, dest = remote_head(), update_dest()
     print("installed  gsdf %-8s %s" % (VERSION, Path(__file__).resolve()))
+    if install_root() is None:
+        # Running from a checkout: the thing that gets replaced is the global install,
+        # not this file. Saying so stops "update" looking like it edits the repo.
+        print("targeting  %s  (this CLI runs from a source checkout)" % dest)
     print("on github  gsdf %-8s %s@%s%s" % (rv, REPO, BRANCH, "  " + rsha[:8] if rsha else ""))
     newer, moved = vtuple(rv) > vtuple(VERSION), bool(rsha and here and rsha != here)
 
@@ -710,6 +753,11 @@ def cmd_update(check=False, force=False):
         print("\nthis install is NEWER than %s. Not touching it — `--force` installs %s anyway." % (BRANCH, rv))
         if not force: return 0
     elif newer:   print("\nupdate available: %s -> %s" % (VERSION, rv))
+    elif moved and not from_git:
+        print("\nsame version, and %s is at a different commit (%s -> %s) — but this was installed\n"
+              "from a local checkout (%s), so that is not evidence of being behind;\n"
+              "it usually means ahead. `--force` installs GitHub's copy anyway." % (BRANCH, here[:8], rsha[:8], r.get("source")))
+        if not force: return 0
     elif moved:   print("\nsame version, but %s has moved since this was installed (%s -> %s)." % (BRANCH, here[:8], rsha[:8]))
     elif force:   print("\nup to date — reinstalling anyway (--force).")
     else:
@@ -751,7 +799,7 @@ def cmd_update(check=False, force=False):
         # from the release being installed, so relying on it means any release that drops or
         # breaks the receipt leaves a stale one — and update then mis-reports for good.
         sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=src, capture_output=True, text=True).stdout.strip()
-        (Path(__file__).resolve().parent / "gsdf-install.json").write_text(json.dumps(
+        receipt_file().write_text(json.dumps(
             {"version": rv, "commit": sha or (rsha or "unknown"), "source": REPO + "@" + BRANCH,
              "installed": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")}, indent=2) + "\n", encoding="utf-8")
     finally:
@@ -810,7 +858,11 @@ def main(a):
         die("unknown: gsdf iter %s" % s)
     # Resolve the phase from the first POSITIONAL argument. Taking a[1] blindly made
     # `gsdf params --write` die with "bad phase: --write" -- and that is the exact
-    # command cmd_params prints when the ABI check fails.
+    # command cmd_params prints when the ABI check fails. An UNKNOWN flag is an error,
+    # never a silent skip: `gsdf context --phase 2` would otherwise print the current
+    # phase and look like it worked.
+    unknown = [x for x in a[1:] if x.startswith("-") and x not in ("--write",)]
+    if unknown: die("unknown option: %s (try `gsdf help`)" % unknown[0])
     pos = [x for x in a[1:] if not x.startswith("-")]
     p = find(pl, pos[0] if pos else None)
     if c == "plans": return print(json.dumps([{k: v for k, v in x.items() if k != "has_depends"} for x in plans_of(p["dir"], p["prefix"])], indent=2))
