@@ -296,6 +296,22 @@ echo "$OUT" | grep -q "a check in prose can be forgotten" && ok "findings reads 
   || bad "findings anchor" "matched the line" "$OUT"
 echo "$OUT" | grep -q "DECISION" && bad "findings picked up a DECISION" "only FINDING:" "$OUT" \
   || ok "findings ignores DECISION: lines"
+# phase_files feeds the relevance gate, so a mangled path means the wrong gate runs.
+mkdir -p "$T/.planning/phases/01-x"
+printf -- '- 10:02 — did a thing [source/Proc.{h,cpp}, ui/App.tsx]\n' \
+  >> "$T/.planning/phases/01-x/01-ITERATIONS.md"
+OUT=$(cd "$T" && python3 - <<'PY'
+import importlib.util, os
+from pathlib import Path
+g = importlib.util.module_from_spec(importlib.util.spec_from_loader('g', None))
+src = open(os.environ["GSDF_BIN"]).read().split("if __name__")[0]
+exec(compile(src, 'g', 'exec'), g.__dict__)
+print(" ".join(g.phase_files(Path('.planning'), g.find(Path('.planning'), '1'))))
+PY
+)
+echo "$OUT" | grep -q "source/Proc.h" && echo "$OUT" | grep -q "source/Proc.cpp" \
+  && ok "phase_files expands {h,cpp} brace groups" \
+  || bad "phase_files brace expansion" "source/Proc.h and .cpp" "$OUT"
 rm -rf "$T"
 
 echo "== 13. speed (spec 10: < 100 ms per call) =="

@@ -397,6 +397,45 @@ def merge(dst, src):
         if isinstance(v, dict) and isinstance(dst.get(k), dict): merge(dst[k], v)
         elif k not in dst or dst.get(k) in ("", None): dst[k] = v
     return dst
+def phase_files(pl, p):
+    """Paths this phase actually touched, from its own commits and iteration log.
+
+    Executors commit as `type(NN-MM): task`, so the phase's commits are findable by
+    prefix; iterate logs carry `[path, path]` suffixes. Used to decide whether a gate
+    is relevant at all -- running a plugin validator after a phase that only touched
+    the UI is ceremony, and ceremony is what gets switched off.
+    """
+    out = set()
+    pre = re.escape(p["prefix"])
+    try:
+        log = subprocess.run(["git", "log", "--name-only", "--format=%s",
+                              r"--grep=^\w+(%s-[0-9]+)" % pre, "-E", "-200"],
+                             capture_output=True, text=True, cwd=pl.parent).stdout
+        for line in log.splitlines():
+            line = line.strip()
+            if line and "/" in line and not line.endswith(":"):
+                out.add(line)
+    except OSError:
+        pass
+    # A phase that has never been planned has no directory, and iter_file() would
+    # divide None by a string. Verify must still run there — an unplanned phase is a
+    # normal state, not an error.
+    for l in (iter_lines(p) if p.get("dir") else []):
+        m = re.search(r"\[([^\]]+)\]\s*$", l)
+        if m:
+            # Expand brace groups before splitting on commas, or "source/X.{h,cpp}"
+            # becomes the two non-paths "source/X.{h" and "cpp}".
+            for part in re.split(r",(?![^{]*\})", m.group(1)):
+                part = part.strip()
+                b = re.match(r"(.*)\{([^}]*)\}(.*)$", part)
+                if b:
+                    out.update("%s%s%s" % (b.group(1), x.strip(), b.group(3))
+                               for x in b.group(2).split(","))
+                elif "/" in part:
+                    out.add(part)
+    return sorted(out)
+
+
 def cmd_verify(pl, p):
     """Run the phase's verification and report honestly. Exit non-zero on failure.
 
@@ -410,7 +449,15 @@ def cmd_verify(pl, p):
     v = cfg.get("verify") or {}
     # plugin_release is the milestone gate, not a per-phase one: it is a full
     # Release build plus auval. Left out here deliberately.
-    cmds = [(k, v[k]) for k in ("build", "test", "ui", "plugin_validate")
+    keys = ["build", "test", "ui"]
+    # Only validate the plugin when the phase touched something that could change
+    # how the host sees it. A UI-only phase does not need a 30s host validator, and
+    # a gate that runs when it cannot possibly fail is the kind people disable.
+    touched = phase_files(pl, p)
+    src = re.compile(r"^(source|Source|src|dsp|plugin)/")
+    if any(src.match(f) and not f.startswith(("ui/", "Source/ui/")) for f in touched) or not touched:
+        keys.append("plugin_validate")
+    cmds = [(k, v[k]) for k in keys
             if v.get(k) and not str(v[k]).startswith("<")]
     src = "config.json"
     if not cmds:
