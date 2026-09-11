@@ -367,9 +367,22 @@ def detect(root):
         try: sc = json.loads(read(root / ui / "package.json")).get("scripts", {})
         except json.JSONDecodeError: sc = {}
         cfg["ui_dir"] = ui
-        if "test" in sc: cfg["verify"]["ui"] = "cd %s && npm test" % ui
+        # "test" is the convention, but a UI that is tested through a named script
+        # (test:ui, test:e2e) is otherwise silently recorded as having no tests.
+        t = next((k for k in ("test", "test:ui", "test:e2e", "test:unit") if k in sc), None)
+        if t: cfg["verify"]["ui"] = "cd %s && npm run %s" % (ui, t)
         if "dev" in sc: cfg["verify"]["ui_dev"] = "cd %s && npm run dev" % ui
-    cfg["verify"]["plugin_validate"] = ("pluginval --strictness-level 5 --validate build/%s_artefacts/Release/VST3/%s.vst3" % (name, name)) if shutil.which("pluginval") else "<pluginval not on PATH>"
+    # A repo that ships its own validator knows more than a guess does: sinemill's
+    # scripts/validate.sh already does universal-binary + pluginval + auval, and
+    # fetches pluginval itself. Prefer it, and write NOTHING rather than a
+    # placeholder string -- a placeholder is a command `gsdf verify` will try to
+    # run, which fails confusingly instead of being honestly absent.
+    if (root / "scripts" / "validate.sh").exists():
+        cfg["verify"]["plugin_validate"] = "bash scripts/validate.sh"
+        cfg["verify"]["plugin_release"] = "bash scripts/validate.sh --release --strict build-release"
+    elif shutil.which("pluginval"):
+        cfg["verify"]["plugin_validate"] = ("pluginval --strictness-level 5 --validate "
+                                            "build/%s_artefacts/Release/VST3/%s.vst3" % (name, name))
     return cfg
 def merge(dst, src):
     for k, v in src.items():
@@ -387,7 +400,10 @@ def cmd_verify(pl, p):
     """
     cfg = config(pl)
     v = cfg.get("verify") or {}
-    cmds = [(k, v[k]) for k in ("build", "test", "ui") if v.get(k)]
+    # plugin_release is the milestone gate, not a per-phase one: it is a full
+    # Release build plus auval. Left out here deliberately.
+    cmds = [(k, v[k]) for k in ("build", "test", "ui", "plugin_validate")
+            if v.get(k) and not str(v[k]).startswith("<")]
     src = "config.json"
     if not cmds:
         # Fall back to the plans' own <verify> commands: a phase can be provably

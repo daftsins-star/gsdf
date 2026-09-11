@@ -102,7 +102,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~562 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~578 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out.
 
 ```bash
