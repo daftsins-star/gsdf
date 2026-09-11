@@ -75,6 +75,34 @@ the knobs…"* — and it's logged as a `DECISION:` and promoted to STATE.md whe
 outlives the phase. Say **approved** and it verifies, makes exactly one commit, folds the log
 into the summaries, and moves to the next phase.
 
+## What a phase teaches outlives it
+
+A lesson is cheapest to judge at the moment you learn it, and most expensive to reconstruct
+afterwards from a record written for another purpose. So findings are captured as they happen —
+`gsdf iter log N "FINDING: …"` during iterate, a `## Findings` line in a summary during execute —
+and approve only **collates** them into `NN-FINDINGS.md`:
+
+```markdown
+## A Mirrored Constant Fails Silently In Both Directions
+cluster: Lessons
+symptoms: ["I changed the limit but the UI still clamps at the old value"]
+see: [[Never Re-Type A Derived Constant]]
+
+The runtime kept the old value and a test asserting the same literal stayed green,
+certifying a bound nothing enforced.
+```
+
+`symptoms:` are the words you'd use *before* knowing the cause — that is what makes it findable
+next time. `gsdf context` then hands the next phase's planner those titles for free, so knowledge
+moves forward deterministically rather than by anyone remembering to look.
+
+**Zero findings is a normal answer.** Most phases teach nothing reusable, and padding the file
+with project history is worse than leaving it empty.
+
+[Living Brain](https://github.com/daftsins-star/LivingBrain) turns these into linked Obsidian
+notes automatically if you want that; GSDF does not require it, and the file is the artefact
+either way.
+
 That's the loop the original GSD had in chat and lost to ceremony, put back on purpose.
 
 ## Works on projects you already started
@@ -102,7 +130,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~578 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~586 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out.
 
 ```bash

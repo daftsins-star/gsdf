@@ -261,6 +261,14 @@ def cmd_context(pl, p):
         b = [x for x in (section(read(f), "Delivered") + "\n" + section(read(f), "Iterations")
              for f in sorted(q["dir"].glob(q["prefix"] + "-*-SUMMARY.md"))) if x.strip()]
         if b: out.append("## Previous phase (%s)\n\n%s" % (q["prefix"], "\n\n".join(x.strip() for x in b)))
+        # Findings are the one artefact written to be reused, so hand them over
+        # deterministically instead of hoping a lexical retriever surfaces them.
+        # Titles only: the planner can open the file if a title looks relevant.
+        ff = q["dir"] / (q["prefix"] + "-FINDINGS.md")
+        if ff.exists():
+            t = [l[3:].strip() for l in read(ff).splitlines() if l.startswith("## ")]
+            if t: out.append("## What the previous phase learned (%s-FINDINGS.md)\n\n%s"
+                             % (q["prefix"], "\n".join("- " + x for x in t)))
     print("\n\n".join(out))
 def cmd_conflicts(pl, p):
     """Two plans in the same wave must never touch the same file. Exit 1 if any do."""

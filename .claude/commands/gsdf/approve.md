@@ -2,7 +2,7 @@
 description: Approve the phase — verify, one commit, advance
 argument-hint: "[N]"
 effort: low
-allowed-tools: [Bash, Read, Edit, Glob, Grep]
+allowed-tools: [Bash, Read, Write, Edit, Glob, Grep]
 ---
 
 CLI: `.claude/bin/gsdf` (or `gsdf` on PATH if that file is absent). Phase: `$ARGUMENTS` (default: current)

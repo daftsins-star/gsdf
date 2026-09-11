@@ -265,6 +265,39 @@ cd "$FIX/native-plan"
 is "error is one line" "$(wc -l < "$WORK/e" | tr -d ' ')" "1"
 cd "$FIX/empty"; "$GSDF" state >/dev/null 2>&1; is "no .planning exits non-zero" "$?" "1"
 
+echo "== 12b. verify and findings =="
+cd "$FIX/native-iterate"
+# NONE CONFIGURED must be exit 2, distinct from both pass (0) and failure (1):
+# an unconfigured project claiming success is the bug this command was built for.
+T=$(mktemp -d); mkdir -p "$T/.planning/phases"
+printf '{"verify":{}}' > "$T/.planning/config.json"
+printf '# Roadmap\n\n### Phase 1: X\n**Goal**: x\n' > "$T/.planning/ROADMAP.md"
+cd "$T"; OUT=$("$GSDF" verify 1 2>&1); RC=$?
+is "verify with nothing configured exits 2" "$RC" "2"
+echo "$OUT" | grep -q "NONE CONFIGURED" && ok "verify says NONE CONFIGURED" || bad "verify wording" "NONE CONFIGURED" "$OUT"
+
+# A passing command must be exit 0, a failing one non-zero — the tick has to
+# track reality, which it did not when approve printed it from a template.
+python3 - "$T/.planning/config.json" <<'PY'
+import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["verify"]={"build":"true"}; json.dump(d,open(p,"w"))
+PY
+"$GSDF" verify 1 >/dev/null 2>&1; is "verify passes when the command passes" "$?" "0"
+python3 - "$T/.planning/config.json" <<'PY'
+import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["verify"]={"build":"false"}; json.dump(d,open(p,"w"))
+PY
+"$GSDF" verify 1 >/dev/null 2>&1; is "verify fails when the command fails" "$?" "1"
+
+# findings must match the real line shape "- HH:MM — FINDING: ...", not "^FINDING:".
+mkdir -p "$T/.planning/phases/01-x"
+printf -- '- 10:00 — FINDING: a check in prose can be forgotten\n- 10:01 — DECISION: not a finding\n' \
+  > "$T/.planning/phases/01-x/01-ITERATIONS.md"
+OUT=$("$GSDF" findings 1 2>&1)
+echo "$OUT" | grep -q "a check in prose can be forgotten" && ok "findings reads FINDING: after the timestamp" \
+  || bad "findings anchor" "matched the line" "$OUT"
+echo "$OUT" | grep -q "DECISION" && bad "findings picked up a DECISION" "only FINDING:" "$OUT" \
+  || ok "findings ignores DECISION: lines"
+rm -rf "$T"
+
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
 S=$(python3 -c "

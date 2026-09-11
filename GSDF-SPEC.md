@@ -170,7 +170,9 @@ the docs and install.sh, not the layout.
 | Atomic commit per task | original | KEEP | `type(NN-MM): name`. |
 | SUMMARY.md | both | KEEP | Adds `## Try it` (§6) so the user can see the result immediately. |
 | **Iterate mode** | new | ADD | §7. Replaces `verify-work` / UAT and replaces "use quick for small fixes". |
-| **Approve** | new | ADD | §7. Single commit, log folded into SUMMARY + STATE, phase advances. Writes `NN-FINDINGS.md` when the phase taught something reusable. |
+| **Approve** | new | ADD | §7. Single commit, log folded into SUMMARY + STATE, phase advances. Runs `gsdf verify`; collates `gsdf findings` into `NN-FINDINGS.md`. |
+| `gsdf verify N` | new | ADD | Runs config verify commands, else the phase's plan `<verify>` blocks. Exit 0 pass, 1 fail, 2 nothing configured — so an unverified phase can never be reported as a passing one. |
+| `gsdf findings N` | new | ADD | Collects `FINDING:` iteration lines and `## Findings` summary sections. Judgement happens when the lesson is learned; this only gathers. |
 | `quick` | both | KEEP | For work outside the current phase. One spawn, no questions. |
 | `progress --next` | both | KEEP | `effort: low`. Restores context after `/clear`. |
 | `effort:` frontmatter | core | KEEP | `low` on progress/help/approve. Never `max`. |
