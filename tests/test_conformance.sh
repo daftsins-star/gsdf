@@ -9,6 +9,7 @@ bad(){ FAIL=$((FAIL+1)); printf '  FAIL %s\n       %s\n' "$1" "$2"; }
 is(){ [ "$2" = "$3" ] && ok "$1 ($2)" || bad "$1" "want $3, got $2"; }
 lt(){ [ "$2" -lt "$3" ] && ok "$1 ($2 < $3)" || bad "$1" "want < $3, got $2"; }
 has(){ case "$2" in *"$3"*) ok "$1";; *) bad "$1" "expected to contain: $3";; esac; }
+hasnt(){ case "$2" in *"$3"*) bad "$1" "must NOT contain: $3";; *) ok "$1";; esac; }
 
 echo "== spawn budget: only new-project, plan, execute, quick may spawn =="
 SPAWNERS="$(grep -liE 'spawn[^.]{0,40}(gsdf-planner|gsdf-executor)' $C/*.md | xargs -n1 basename | sort | tr '\n' ' ')"
@@ -196,6 +197,50 @@ done
 # internal doc links must resolve
 for f in $(grep -ohE '\]\(([A-Za-z0-9_.-]+\.md)\)' *.md | sed 's/](\(.*\))/\1/' | sort -u); do
   is "doc link resolves: $f" "$([ -f "$f" ] && echo yes)" "yes"
+done
+
+echo "== every gsdf call the markdown prescribes actually exists =="
+# /gsdf:help advertised `gsdf progress`, which is not a subcommand and exits 1. A grep for
+# "gsdf <word>" missed it because it sat in a "next / state / progress" list, so this walks
+# slash-separated alternatives too, and only inside code (fences and inline spans).
+OUT=$(python3 - "$ROOT" <<'PY2'
+import re, sys, pathlib, subprocess
+root = pathlib.Path(sys.argv[1])
+known = set(subprocess.run([str(root/"bin"/"gsdf"), "help"], capture_output=True, text=True)
+            .stdout.strip().splitlines()[-1].replace("Subcommands:", "").split()) | {"help", "version"}
+files = sorted((root/".claude"/"commands"/"gsdf").glob("*.md")) + \
+        sorted((root/".claude"/"agents").glob("gsdf-*.md")) + \
+        sorted((root/".claude"/"skills"/"gsdf-templates").glob("*.md")) + \
+        [root/".claude"/"CLAUDE.gsdf.md"]
+bad = []
+for f in files:
+    fence = False
+    for i, line in enumerate(f.read_text().splitlines(), 1):
+        if line.lstrip().startswith(chr(96) * 3):
+            fence = not fence; continue
+        BT = chr(96)   # a literal backtick here would open a command substitution: the
+                       # heredoc sits inside $( ), and the shell still scans it for those
+        for ch in ([line] if fence else re.findall(BT + "([^" + BT + "]+)" + BT, line)):
+            m = re.search(r"(?:\./)?(?:\.claude/bin/)?\bgsdf\s+(.*)$", ch)
+            if not m: continue
+            for alt in m.group(1).split("#")[0].split("/"):
+                w = alt.strip().split()
+                if w and re.match(r"^[a-z][a-z-]*$", w[0]) and w[0] not in known:
+                    bad.append("%s:%d gsdf %s" % (f.name, i, w[0]))
+print("\n".join(sorted(set(bad))))
+PY2
+)
+[ -z "$OUT" ] && ok "no command or agent file calls a subcommand that does not exist" \
+  || bad "markdown calls a non-existent subcommand" "$OUT"
+
+echo "== a command that asks a question is allowed to ask one =="
+# approve.md gained an AskUserQuestion path (verify exit 2 = nothing configured) while its
+# frontmatter still forbade the tool. Instructions a command is not permitted to follow are
+# not instructions.
+for f in $C/*.md; do
+  if grep -q "AskUserQuestion" "$f"; then
+    has "$(basename $f) declares AskUserQuestion" "$(sed -n '/^allowed-tools:/p' "$f")" "AskUserQuestion"
+  fi
 done
 
 echo "== a release bumps VERSION =="

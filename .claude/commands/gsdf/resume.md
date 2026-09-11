@@ -22,9 +22,13 @@ hold.
 .claude/bin/gsdf context N
 ```
 
-`gsdf context N` already carries the handoff as its `## Handoff (continue-here.md)` section,
-capped at 40 lines. If `gsdf next` says `new-project`, stop and say: "No `.planning/` here — run
-`/gsdf:new-project`."
+Read `gsdf next` **before** running `gsdf context` — it decides whether there is a phase at all.
+On `new-project`, stop and say: "No `.planning/` here — run `/gsdf:new-project`." On
+`milestone-done` there is no current phase, so `gsdf context` exits with an error; read
+`.planning/continue-here.md` instead and route from step 5.
+
+Otherwise `gsdf context N` already carries the handoff as its `## Handoff (continue-here.md)`
+section, capped at 40 lines.
 
 **2. Read the handoff in full** from `<phase dir>/.continue-here.md` or
 `.planning/continue-here.md` (`gsdf phase dir N` gives the directory). This is the only file this

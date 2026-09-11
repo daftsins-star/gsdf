@@ -25,7 +25,7 @@ GSDF — Get Shit Done Fast
   /gsdf:help            This.
 
   The CLI, read-only unless it says otherwise:
-  gsdf next / state / progress   Where things stand.
+  gsdf next / state / phase list Where things stand.
   gsdf verify N                  Run the phase's checks. Exit 2 = nothing configured,
                                  so an unverified phase can't be reported as passing.
   gsdf findings N                What the phase captured as reusable.

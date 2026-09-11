@@ -34,7 +34,10 @@ the difference is a few hundred tokens against several thousand.
 task, and the verify output it gave, then say what the choices are. A blocked plan means the plan
 was wrong; the fix is usually `/gsdf:plan N` again, not another execute.
 
-**4. After the last wave:**
+**4. After the last wave — only if the whole phase ran.** Check `gsdf next` first: it must say
+`iterate NN`. With `--wave W` you ran one wave of several, so it will still say `execute NN` —
+print what is left and stop there. Entering iterate mode on a phase whose remaining plans have
+never run marks it ready for review when half of it does not exist yet.
 
 ```bash
 .claude/bin/gsdf state defer "<each Deferred bullet from each summary>"

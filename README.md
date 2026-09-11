@@ -153,7 +153,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~1019 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~1026 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out. (Lines, not words, is the honest
 unit here: `bin/gsdf` is never loaded into a context window, so what the number claims is how
 much code you have to trust — not what it costs you to run.)
@@ -222,7 +222,7 @@ figure taken from the same real project (a JUCE gain plugin scaffolded by `/gsdf
 |---|---|---|---|
 | Commands | 29 | 72 | **11** |
 | Agents | 12 | 64 | **2** |
-| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **7,683** |
+| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **8,040** |
 | Description text loaded every turn | 1,880 chars | 5,349 chars | **498 chars** |
 | Context handed to the planner | ~3,572 tokens<sup>‡</sup> | ~3,572 tokens<sup>‡</sup> | **631 tokens** |
 | Subagents per 2-plan phase | 6–8 | 6–10 | **3** |

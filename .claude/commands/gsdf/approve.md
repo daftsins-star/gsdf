@@ -2,7 +2,7 @@
 description: Approve the phase — verify, one commit, advance
 argument-hint: "[N]"
 effort: low
-allowed-tools: [Bash, Read, Write, Edit, Glob, Grep]
+allowed-tools: [Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion]
 ---
 
 CLI: `.claude/bin/gsdf` (or `gsdf` on PATH if that file is absent). Phase: `$ARGUMENTS` (default: current)
@@ -19,34 +19,38 @@ iteration log into the record, and move to the next phase.
 This command commits and advances a phase; "approved" said about something else entirely must
 never be enough to fire it.
 
-**1. Verify.** `gsdf verify N`. It runs `config.json`'s verify commands, falls back to the
-phase's own plan `<verify>` blocks if there are none, prints one line per command with its exit
-code, and exits non-zero on any failure — or 2, printing `NONE CONFIGURED`, when there is
-nothing to run at all.
+**1. Verify — gate, before anything is written.** `gsdf verify N`. It runs `config.json`'s
+verify commands, falls back to the phase's own plan `<verify>` blocks if there are none, prints
+one line per command with its exit code, and exits:
+
+| exit | meaning | what to do |
+|---|---|---|
+| 0 | everything ran and passed | carry on |
+| 1 | something ran and failed | show the failing output, say **"Not approved — <what broke>. Still in iterate mode."**, stop. Do not commit, do not advance. Fixing it is the next iteration. |
+| 2 | `NONE CONFIGURED` — nothing to run | nothing broke, but nothing is proven either. Say so, and ask once whether to approve unverified. Only a yes continues, and the report says `Verified: nothing configured — not verified` |
 
 Copy its output into the report. **Never write a tick for a command you did not see run**: an
 unconfigured project and a passing one must not look alike, which is the bug this replaced.
-On non-zero: show the failing output, say **"Not approved — <what broke>. Still in iterate
-mode."**, and stop. Fixing it is the next iteration.
+Exit 2 is the case that bug wore as a disguise — treat it as unproven, never as passing.
 
-If any fails: show the failing output, say **"Not approved — <what broke>. Still in iterate
-mode."**, and stop. Do not commit. Do not advance. Fixing it is the next iteration.
-
-**2. Fold the log in.** `gsdf iter list N`, then append those lines under the `## Iterations`
-heading of **every** `NN-MM-SUMMARY.md` in the phase. If a summary has no such heading (older
-GSD summaries don't), add it at the end.
-
-**3. Promote decisions.** Every logged line beginning `DECISION:` becomes
-`gsdf state note "<the line without the prefix>"`. These outlive the phase — that's the point.
-
-**2a. Guard the parameter ABI.** `gsdf params N`. Silent and advisory until
+**2. Guard the parameter ABI — the other gate.** `gsdf params N`. Advisory until
 `abi_frozen: true` is set in `config.json` — before a release, churn is what you want. After
 one, a removed or reordered parameter id silently repoints every automation lane in every
 saved session, and the damage surfaces months later in someone else's project. Non-zero:
 **stop**, say which id, and offer the migrate-on-load fix. A deliberate break re-locks with
 `gsdf params N --write`.
 
-**3a. Collate the findings — `NN-FINDINGS.md`.** `gsdf findings N` prints what was captured
+Both gates run before step 3 on purpose: everything from here down writes files, and failing a
+gate afterwards leaves the phase's bookkeeping half-rewritten.
+
+**3. Fold the log in.** `gsdf iter list N`, then append those lines under the `## Iterations`
+heading of **every** `NN-MM-SUMMARY.md` in the phase. If a summary has no such heading (older
+GSD summaries don't), add it at the end.
+
+**4. Promote decisions.** Every logged line beginning `DECISION:` becomes
+`gsdf state note "<the line without the prefix>"`. These outlive the phase — that's the point.
+
+**5. Collate the findings — `NN-FINDINGS.md`.** `gsdf findings N` prints what was captured
 as it happened: iteration lines prefixed `FINDING:`, and `## Findings` sections from plan
 summaries. Judged by whoever was there — collate, do not re-read the phase and guess.
 
@@ -59,7 +63,7 @@ phase truly taught it — if that keeps happening, log `FINDING:` during the wor
 file: it puts noise where signal is trusted. If living-brain is installed its Stop hook
 promotes the file on its own.
 
-**4. Advance.**
+**6. Advance.**
 
 ```bash
 .claude/bin/gsdf phase advance N    # stamps NN approved and flips its ROADMAP marker
@@ -69,7 +73,7 @@ promotes the file on its own.
 .claude/bin/gsdf state position "Phase NN approved, <k> iterations. Next: phase <NN+1>."
 ```
 
-**5. Commit — once, last.** Everything above writes files, so committing before them would
+**7. Commit — once, last.** Everything above writes files, so committing before them would
 leave the phase's own bookkeeping dirty. `git add -A` stages *everything*, so look first:
 
 ```bash
@@ -88,17 +92,17 @@ git add -A
 git commit -m "feat(NN): approve phase NN — <k> iterations"
 ```
 
-`k` is `gsdf iter count N`, read before step 4. This is the one commit for the whole iterate
+`k` is `gsdf iter count N`, read before step 6. This is the one commit for the whole iterate
 session, and it must leave the tree clean — verify with `git status --porcelain` after.
 
-**6. Report — five lines, no more.**
+**8. Report — five lines, no more.**
 
 ```
 Approved phase NN — <k> iterations, commit <hash>.
 Verified: <paste gsdf verify's own summary line — never a tick you typed yourself>
 Findings: <n> collated (or "none — nothing reusable")
-Next: <NN+1> <slug>
-Next: `/gsdf:discuss <NN+1>` or `/gsdf:plan <NN+1>`.
+Next phase: <NN+1> <slug>
+Run: `/gsdf:discuss <NN+1>` or `/gsdf:plan <NN+1>`.
 ```
 
 </process>

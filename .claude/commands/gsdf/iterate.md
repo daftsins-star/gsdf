@@ -14,7 +14,11 @@ fresh session — `/gsdf:execute` enters it automatically the first time.
 
 <process>
 
-**Restore.** Run and show:
+**Check first.** `gsdf next`. If it doesn't say `iterate NN`, say what state the phase is
+actually in and **stop** — before running anything else. A phase that was never executed has no
+phase directory, and `gsdf iter list` on it exits with an error rather than an empty list.
+
+**Then restore.** Run and show:
 
 ```bash
 .claude/bin/gsdf tryit N        # how to see the work, and what needs a human eye
@@ -23,8 +27,6 @@ fresh session — `/gsdf:execute` enters it automatically the first time.
 
 Then one line: *"Iterate mode, phase NN, `<k>` changes so far. Tell me what to change. Say
 **approved** when it's right."*
-
-If `gsdf next` doesn't say `iterate NN`, say what state the phase is actually in and stop.
 
 </process>
 

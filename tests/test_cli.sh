@@ -556,6 +556,24 @@ cd "$FIX/empty"
 hasnt "bug needs no .planning" "$("$GSDF" bug "from a bare dir" 2>&1)" "no .planning/"
 cd "$ROOT"; unset GSDF_BUGLOG; rm -rf "$B"
 
+echo "== 12o. state writers refuse an empty entry =="
+T=$(mktemp -d); mkdir -p "$T/.planning/phases"
+printf '# Roadmap\n\n### Phase 1: A\n' > "$T/.planning/ROADMAP.md"
+printf -- '---\nphase: 01\n---\n# State\n\n## Position\n\nx\n' > "$T/.planning/STATE.md"
+cd "$T"
+# execute.md says to run `state defer` once per Deferred bullet; a phase that deferred
+# nothing used to write "- <date> — " into the file a human reads.
+for S in defer note position; do
+  "$GSDF" state $S >/dev/null 2>&1
+  is "state $S with no text exits 1" "$?" "1"
+done
+"$GSDF" state set k >/dev/null 2>&1; is "state set with no value exits 1" "$?" "1"
+hasnt "STATE.md gained no empty bullet" "$(cat .planning/STATE.md)" "— \n"
+is "STATE.md is untouched" "$(grep -c '^- ' .planning/STATE.md)" "0"
+"$GSDF" state defer "a real item" >/dev/null
+has "a real entry still writes" "$(cat .planning/STATE.md)" "a real item"
+cd "$ROOT"; rm -rf "$T"
+
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
 S=$(python3 -c "

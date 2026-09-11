@@ -41,13 +41,26 @@ reading those files directly is how a session's context gets eaten before any wo
 For `milestone-done`, close it out inline — **this command spawns nothing**:
 1. Ask (one `AskUserQuestion`) whether to close the milestone now.
 2. `git tag` the milestone name from STATE.md frontmatter, if the tree is clean.
-3. `mkdir -p .planning/milestones/<milestone>`, then **`git mv` both the phases and the
-   roadmap** into it:
+3. `mkdir -p .planning/milestones/<milestone>`, then move **both the phases and the roadmap**
+   into it. Use `git mv` only if `.planning/` is actually tracked — when it is gitignored (a
+   common setup, and GSDF's own repo does it) `git mv` fails with *"not under version control"*
+   and moves **nothing at all**, which leaves precisely the stale roadmap this step exists to
+   prevent:
 
    ```bash
-   git mv .planning/phases/* .planning/milestones/<milestone>/
-   git mv .planning/ROADMAP.md .planning/milestones/<milestone>/ROADMAP.md
+   # two explicit branches, not a $MV variable: "git mv" in a variable is one word in zsh
+   # and fails with "command not found: git mv"
+   if git ls-files --error-unmatch .planning/ROADMAP.md >/dev/null 2>&1; then
+     git mv .planning/phases/* .planning/milestones/<milestone>/
+     git mv .planning/ROADMAP.md .planning/milestones/<milestone>/ROADMAP.md
+   else                      # untracked or gitignored — a plain move is the whole job
+     mv .planning/phases/* .planning/milestones/<milestone>/
+     mv .planning/ROADMAP.md .planning/milestones/<milestone>/ROADMAP.md
+   fi
    ```
+
+   Check afterwards that `.planning/ROADMAP.md` is gone and `phases/` is empty — if the move
+   half-failed, stop and say so rather than carrying on to step 4.
 
    Move, never delete. Everything under `.planning/` that GSDF didn't create stays where it is.
    The ROADMAP goes too because it *describes* the milestone being closed — leaving it behind

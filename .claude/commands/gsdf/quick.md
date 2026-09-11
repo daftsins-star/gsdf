@@ -45,6 +45,7 @@ the phase flow by definition. Real defects it turns up go to `gsdf state defer "
 <success_criteria>
 - Exactly one subagent spawned.
 - Zero questions asked.
-- One commit per task, plus the executor's `docs(...)` commit, all inside `.planning/quick/NNN-slug/`.
+- One commit per task (touching the source files the task named), plus the executor's
+  `docs(...)` commit for the SUMMARY. Only the PLAN and SUMMARY live in `.planning/quick/NNN-slug/`.
 - `gsdf next` reports exactly what it did before.
 </success_criteria>
