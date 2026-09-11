@@ -221,8 +221,8 @@ control flow.
     └── NN-FINDINGS.md       # gsdf only. New. Written at approve when the phase taught something
                              # reusable; absent when it did not, which is normal. Each ## section
                              # is one knowledge-vault note, carrying cluster/symptoms/see. Consumed
-                             # by living-brain (which globs **/*FINDINGS.md) or by lb-promote,
-                             # which writes the notes directly and skips the review Inbox.
+                             # by living-brain, whose Stop hook writes the notes directly
+                             # and skips the review Inbox. Optional: the file is the artefact.
 ```
 
 Everything not in this list that already exists in `.planning/` is ignored and preserved. GSDF

@@ -4,9 +4,9 @@ phase: NN
 # Findings — Phase NN
 
 Durable knowledge this phase produced, pre-judged and ready to become vault notes.
-`lb-promote.py <this file>` writes each `##` section straight into the knowledge
-vault, skipping living-brain's Inbox — the judgement of what matters happened here,
-when the lesson was learned, instead of being re-derived from a summary later.
+If living-brain is installed, its Stop hook writes each `##` section straight into the
+knowledge vault — the judgement of what matters happened here, when the lesson was
+learned, instead of being re-derived from a summary later. Nothing to run by hand.
 
 **What belongs here.** Something that will be true on a different project. The
 misconception that let a bug survive review, not the bug. A tool's behaviour that
