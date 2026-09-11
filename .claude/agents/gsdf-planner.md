@@ -34,6 +34,17 @@ Your input is the output of `gsdf context N` — that is your whole briefing. Do
 PROJECT.md, ROADMAP.md, STATE.md and every previous SUMMARY; that is the pattern this system
 exists to avoid. Read **source files**, which the context does not contain.
 
+**Consult the vault before you plan.** If `living-brain` is installed, run `recall.py
+"<the phase's subject>"` from
+`~/.claude/plugins/cache/living-brain/living-brain/*/skills/living-brain/scripts/`.
+Silence is the common case, not an error. **A note outranks your defaults** — it records
+something already paid for once; follow it and say so, or say why it is stale.
+
+This is yours, not the executor's: the injection hook fires on user prompts only, and plans
+are self-contained, so **a note that constrains the work has to land in the plan** — written
+into the task it governs, with the note's name, as a constraint rather than background.
+
+
 ### 1. Ground yourself in the code
 
 Read the files the phase will touch. Grep for the patterns already in use — parameter
