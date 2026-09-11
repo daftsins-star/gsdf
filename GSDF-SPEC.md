@@ -130,8 +130,9 @@ gsdf/
 │   │   ├── CONTEXT.template.md
 │   │   ├── PLAN.template.md
 │   │   ├── SUMMARY.template.md
-│   │   └── ITERATIONS.template.md
-│   ├── CLAUDE.gsdf.md        # 15-line block install.sh appends to the target's CLAUDE.md (§9)
+│   │   ├── ITERATIONS.template.md
+│   │   └── FINDINGS.template.md
+│   ├── CLAUDE.gsdf.md        # block install.sh appends to the target's CLAUDE.md (§9)
 │   └── settings.json         # permissions allow-list (§9)
 └── tests/
     ├── test_cli.sh
@@ -169,7 +170,7 @@ the docs and install.sh, not the layout.
 | Atomic commit per task | original | KEEP | `type(NN-MM): name`. |
 | SUMMARY.md | both | KEEP | Adds `## Try it` (§6) so the user can see the result immediately. |
 | **Iterate mode** | new | ADD | §7. Replaces `verify-work` / UAT and replaces "use quick for small fixes". |
-| **Approve** | new | ADD | §7. Single commit, log folded into SUMMARY + STATE, phase advances. |
+| **Approve** | new | ADD | §7. Single commit, log folded into SUMMARY + STATE, phase advances. Writes `NN-FINDINGS.md` when the phase taught something reusable. |
 | `quick` | both | KEEP | For work outside the current phase. One spawn, no questions. |
 | `progress --next` | both | KEEP | `effort: low`. Restores context after `/clear`. |
 | `effort:` frontmatter | core | KEEP | `low` on progress/help/approve. Never `max`. |
@@ -214,7 +215,12 @@ control flow.
     ├── NN-MM-SUMMARY.md     # both GSDs. gsdf writes this name.
     ├── NN-VERIFICATION.md   # original GSD verify-work output. Presence = phase was verified. Never written by gsdf.
     ├── NN-UAT.md            # both GSDs UAT. Presence with a pass marker = phase approved. Never written by gsdf.
-    └── NN-ITERATIONS.md     # gsdf only. New.
+    ├── NN-ITERATIONS.md     # gsdf only. New.
+    └── NN-FINDINGS.md       # gsdf only. New. Written at approve when the phase taught something
+                             # reusable; absent when it did not, which is normal. Each ## section
+                             # is one knowledge-vault note, carrying cluster/symptoms/see. Consumed
+                             # by living-brain (which globs **/*FINDINGS.md) or by lb-promote,
+                             # which writes the notes directly and skips the review Inbox.
 ```
 
 Everything not in this list that already exists in `.planning/` is ignored and preserved. GSDF
