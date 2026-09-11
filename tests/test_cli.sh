@@ -477,6 +477,41 @@ has "the bad entry is named, not silently dropped" "$OUT" "ignoring verify.build
 has "the good one still runs" "$OUT" "verify: 1/1 passed"
 cd "$ROOT"; rm -rf "$T"
 
+echo "== 12m. an annotated tag resolves to its COMMIT, not the tag object =="
+# `git ls-remote --tags` prints two lines for an annotated tag: the tag OBJECT's sha, and
+# the peeled "^{}" line carrying the commit. Taking the first (what --refs leaves you with)
+# means the sha never matches a receipt, so every check reports "the ref has moved" and
+# offers an update that changes nothing. Stub git so this needs no network.
+T=$(mktemp -d); mkdir -p "$T/bin"
+cat > "$T/bin/git" <<'GIT'
+#!/bin/sh
+case "$*" in
+  *"ls-remote --tags"*)
+    echo "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	refs/tags/v1.0.0"
+    echo "cccccccccccccccccccccccccccccccccccccccc	refs/tags/v1.0.0^{}"
+    echo "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	refs/tags/v1.2.0"
+    echo "dddddddddddddddddddddddddddddddddddddddd	refs/tags/v1.2.0^{}"
+    echo "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee	refs/tags/not-a-version"
+    ;;
+  *) exit 1 ;;
+esac
+GIT
+chmod +x "$T/bin/git"
+OUT=$(PATH="$T/bin:$PATH" GSDF_BIN="$GSDF" python3 - <<'PY2'
+import importlib.util, os
+g = importlib.util.module_from_spec(importlib.util.spec_from_loader('g', None))
+g.__dict__["__file__"] = os.environ["GSDF_BIN"]
+exec(compile(open(os.environ["GSDF_BIN"]).read().split("if __name__")[0], 'g', 'exec'), g.__dict__)
+for v, n, s in g.remote_tags(): print(n, s[:4])
+PY2
+)
+is "newest tag first, peeled commit not tag object" "$(printf '%s' "$OUT" | head -1)" "v1.2.0 dddd"
+has "older tag also peeled" "$OUT" "v1.0.0 cccc"
+hasnt "the tag object sha is never used" "$OUT" "aaaa"
+hasnt "nor the newer tag's object sha" "$OUT" "bbbb"
+hasnt "a non-version tag is ignored" "$OUT" "not-a-version"
+rm -rf "$T"
+
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
 S=$(python3 -c "

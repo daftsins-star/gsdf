@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """gsdf - deterministic state tool for GSDF. Filesystem is the source of truth (spec 4a)."""
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 import fcntl, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 from contextlib import contextmanager
 from datetime import datetime, date
@@ -724,16 +724,23 @@ def remote_tags():
     bumps it, and an update moves between releases instead of onto whatever is mid-work
     on main."""
     try:
-        r = subprocess.run(["git", "ls-remote", "--tags", "--refs", REPO],
+        # Deliberately NOT --refs: that strips the peeled "refs/tags/X^{}" line, and for an
+        # ANNOTATED tag the plain line is the tag OBJECT's sha, not the commit's. Comparing
+        # that against a receipt (which holds a commit) never matches, so every check would
+        # report "the ref has moved" forever and offer an update that changes nothing.
+        r = subprocess.run(["git", "ls-remote", "--tags", REPO],
                            capture_output=True, text=True, timeout=30)
         if r.returncode: return []
     except (OSError, subprocess.SubprocessError): return []
-    out = []
+    sha = {}
     for line in r.stdout.splitlines():
         p = line.split()
-        if len(p) == 2 and re.match(r"^v?\d+(\.\d+)*$", p[1].rsplit("/", 1)[-1]):
-            out.append((vtuple(p[1].rsplit("/", 1)[-1]), p[1].rsplit("/", 1)[-1], p[0]))
-    return sorted(out, reverse=True)
+        if len(p) != 2: continue
+        name, peeled = p[1].rsplit("/", 1)[-1], p[1].endswith("^{}")
+        name = name[:-3] if peeled else name
+        if not re.match(r"^v?\d+(\.\d+)*$", name): continue
+        if peeled or name not in sha: sha[name] = p[0]   # the peeled commit always wins
+    return sorted(((vtuple(n), n, s) for n, s in sha.items()), reverse=True)
 def remote_version(ref=None):
     import urllib.request
     u = raw_url("bin/gsdf", ref) or die("GSDF_REPO is not a GitHub URL: %s" % REPO)
