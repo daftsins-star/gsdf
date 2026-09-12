@@ -222,9 +222,16 @@ def config(pl, strict=False):
         if strict: die("config.json is not valid JSON (%s) — fix it before adopting; "
                        "refusing to overwrite it and lose the keys it holds" % e)
         return {}
+def phase_num_re(n):
+    """`Phase 3` and `Phase 03.1` are the same heading style written by different hands, so the
+    number has to match however it is padded. num is normalized ("3", "3.1") while /gsdf:phase
+    writes inserted phases padded ("### Phase 03.1:") -- comparing them literally found nothing
+    and silently dropped the goal AND the requirements block from every decimal phase's context.
+    The lookahead keeps phase 3 off phase 3.1's heading, which a bare \\b would have allowed."""
+    return r"\.".join(r"0*" + re.escape(c) for c in str(n).split(".")) + r"(?![\d.])"
 def roadmap_entry(pl, p):
     t = read(pl / "ROADMAP.md")
-    m = re.search(r"^#{2,4}[ \t]*\*{0,2}Phase[ \t]+%s\b.*$" % re.escape(p["num"]), t, re.M)
+    m = re.search(r"^#{2,4}[ \t]*\*{0,2}Phase[ \t]+%s.*$" % phase_num_re(p["num"]), t, re.M)
     if not m: return ""
     nxt = re.search(r"^#{2,4}[ \t]", t[m.end():], re.M)
     return t[m.start():m.end() + (nxt.start() if nxt else len(t) - m.end())].strip()
@@ -679,8 +686,11 @@ def cmd_advance(pl, p=None):
         p["dir"] = pl / "phases" / ("%s-%s" % (p["prefix"], p["slug"])); p["dir"].mkdir(parents=True, exist_ok=True)
     iter_approve(p)
     t = read(pl / "ROADMAP.md"); orig = t
-    t = re.sub(r"^([ \t]*[-*][ \t]*)\[[ ]\]([ \t]*\**Phase[ \t]+%s\b)" % re.escape(p["num"]), r"\1[x]\2", t, count=1, flags=re.M)
-    blk = re.search(r"^#{2,4}[ \t]*\*{0,2}Phase[ \t]+%s\b.*?(?=^#{2,4}[ \t]|\Z)" % re.escape(p["num"]), t, re.M | re.S)
+    # Same padding tolerance as roadmap_entry, and for the same reason: without it an inserted
+    # phase's checkbox stayed [ ] and its Status stayed pending through approve, and the whole
+    # update fell through to the trailing HTML comment below.
+    t = re.sub(r"^([ \t]*[-*][ \t]*)\[[ ]\]([ \t]*\**Phase[ \t]+%s)" % phase_num_re(p["num"]), r"\1[x]\2", t, count=1, flags=re.M)
+    blk = re.search(r"^#{2,4}[ \t]*\*{0,2}Phase[ \t]+%s.*?(?=^#{2,4}[ \t]|\Z)" % phase_num_re(p["num"]), t, re.M | re.S)
     if blk:
         nb = re.sub(r"(\*{0,2}Status\*{0,2}:[ \t]*)(pending|in progress|planned|todo)", r"\1complete", blk.group(0), flags=re.I)
         nb = nb.replace("⏳", "✅"); t = t[:blk.start()] + nb + t[blk.end():]

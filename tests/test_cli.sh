@@ -127,6 +127,35 @@ has "second requirement complete too" "$CTX" "keeps its alias floor below -80 dB
 hasnt "out-of-scope bullet mentioning a REQ id is excluded" "$CTX" "not a loudness normaliser"
 hasnt "unrelated requirement excluded" "$CTX" "REQ-04"
 
+echo "== 5c2. a zero-padded decimal heading is the same phase as its normalized number =="
+# /gsdf:phase writes inserted phases padded ("### Phase 01.1:") while num normalizes to "1.1".
+# Comparing them literally found no entry, so context silently dropped the goal AND the
+# requirements block, and advance left the checkbox unticked.
+sandbox native-execute
+mkdir -p .planning/phases/01.1-restore
+printf -- '---\nphase: 01.1\nplan: 01\nstatus: complete\ncommits: []\n---\n# Summary\n## Delivered\nported\n' \
+  > .planning/phases/01.1-restore/01.1-01-SUMMARY.md
+python3 - <<'PY'
+import re, pathlib
+p = pathlib.Path(".planning/ROADMAP.md"); t = p.read_text()
+t = t.replace("- [ ] **Phase 2: UI**", "- [ ] **Phase 01.1: Restore (INSERTED)** - ported substrate\n- [ ] **Phase 2: UI**")
+t = t.replace("### Phase 2: UI", "### Phase 01.1: Restore (INSERTED)\n"
+              "**Goal**: The substrate comes back from the template.\n"
+              "**Status**: pending\n**Requirements**: REQ-02\n\n### Phase 2: UI")
+p.write_text(t)
+PY
+CTX="$("$GSDF" context 01.1)"
+hasnt "padded decimal heading is found" "$CTX" "no ROADMAP entry found"
+has "decimal phase gets its goal" "$CTX" "The substrate comes back from the template"
+has "decimal phase gets its requirements block" "$CTX" "keeps its alias floor below -80 dBFS"
+hasnt "phase 1 does not swallow 01.1's entry" "$("$GSDF" context 1)" "comes back from the template"
+"$GSDF" phase advance 01.1 >/dev/null
+RM="$(cat .planning/ROADMAP.md)"
+has "advance ticks a padded decimal checkbox" "$RM" "- [x] **Phase 01.1: Restore (INSERTED)**"
+has "advance flips its Status" "$(sed -n '/### Phase 01.1:/,/### Phase 2:/p' .planning/ROADMAP.md)" "**Status**: complete"
+hasnt "no fallback comment appended" "$RM" "<!-- gsdf: phase 01.1 complete -->"
+hasnt "phase 1's checkbox untouched" "$RM" "- [x] **Phase 1: Drive**"
+
 echo "== 5d. gsdf lint is the plan gate, as a command not a prose instruction =="
 cd "$FIX/native-execute"
 is "a good phase passes" "$("$GSDF" lint 1)" "phase 01: 2 plan(s) pass all gates"
