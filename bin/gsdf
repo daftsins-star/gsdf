@@ -235,7 +235,20 @@ def roadmap_entry(pl, p):
     if not m: return ""
     nxt = re.search(r"^#{2,4}[ \t]", t[m.end():], re.M)
     return t[m.start():m.end() + (nxt.start() if nxt else len(t) - m.end())].strip()
-REQ_START = re.compile(r"^\s*(?:[-*+]|\d+\.)\s*\**\s*(REQ-\d+)\b")
+# A requirement id is any short uppercase tag, not just REQ-. Hardcoding REQ-\d+ meant a
+# project numbering by domain -- ENG-01, LAYER-03, SCENE-07 -- got NO requirements block at
+# all, ever, and nothing said so. The checkbox marker is equally load-bearing: requirements
+# are commonly written `- [ ] **ENG-01**: ...`, which the old bullet pattern did not match
+# either, so generalizing the id alone would have fixed nothing for such a project.
+REQ_ID = r"[A-Z][A-Z0-9]{1,7}-\d+"
+REQ_START = re.compile(r"^\s*(?:[-*+]|\d+\.)\s*(?:\[[ xX✅⏳]?\]\s*)?\**\s*(%s)\b" % REQ_ID)
+# Not preceded by another id character, so `V2-ENG-01` does not read as `ENG-01`.
+REQ_MENTION = re.compile(r"(?<![A-Z0-9-])(%s)\b" % REQ_ID)
+def req_ids(text):
+    """Every id REQUIREMENTS.md actually DEFINES as a bullet. Intersecting against this is what
+    keeps a general id pattern honest -- `UTF-8` or `SHA-256` in a roadmap's prose looks exactly
+    like a requirement reference and must not become one."""
+    return {m.group(1) for m in (REQ_START.match(l) for l in text.splitlines()) if m}
 def req_blocks(text, wanted):
     """A requirement is a bullet plus its continuation lines, and only from a v1/v2 section.
     Line-filtering truncates wrapped requirements and lets an out-of-scope bullet that merely
@@ -266,8 +279,19 @@ def cmd_context(pl, p):
             out.append("### %s\n\n%s" % (n, cap(re.sub(r"\A#[ \t][^\n]*\n+", "", read(pl / "codebase" / f)), 40)))
     entry = roadmap_entry(pl, p)
     out.append("## Phase %s\n\n%s" % (p["prefix"], entry or "%s — no ROADMAP entry found." % p["name"]))
-    reqs = re.findall(r"REQ-\d+", entry)
-    if reqs: out.append("## Requirements\n\n" + "\n".join(req_blocks(read(pl / "REQUIREMENTS.md"), reqs)))
+    rtext = read(pl / "REQUIREMENTS.md")
+    defined = req_ids(rtext)
+    cited = list(dict.fromkeys(m.group(1) for m in REQ_MENTION.finditer(entry)))
+    reqs = [i for i in cited if i in defined]
+    # An id the roadmap cites that REQUIREMENTS.md does not define is a broken reference, and
+    # silence about it reads as "this phase has no such requirement". Only complain about ids
+    # whose prefix IS defined, so prose like `WCAG-2` or `UTF-8` stays prose.
+    pre = {i.rsplit("-", 1)[0] for i in defined}
+    miss = [i for i in cited if i not in defined and i.rsplit("-", 1)[0] in pre]
+    blocks = req_blocks(rtext, reqs) if reqs else []
+    if miss: blocks.append(("\n" if blocks else "") + "[cited by the roadmap but not defined in "
+                           "REQUIREMENTS.md: %s]" % ", ".join(miss))
+    if blocks: out.append("## Requirements\n\n" + "\n".join(blocks))
     dec = section(read(state_file(pl)), "Decisions", "Decisions Made")
     if dec: out.append("## Decisions\n\n" + tail(dec, 20))
     ctx = p["dir"] and (p["dir"] / (p["prefix"] + "-CONTEXT.md"))

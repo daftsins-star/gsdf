@@ -153,7 +153,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~1095 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~1130 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out. (Lines, not words, is the honest
 unit here: `bin/gsdf` is never loaded into a context window, so what the number claims is how
 much code you have to trust — not what it costs you to run.)

@@ -127,6 +127,49 @@ has "second requirement complete too" "$CTX" "keeps its alias floor below -80 dB
 hasnt "out-of-scope bullet mentioning a REQ id is excluded" "$CTX" "not a loudness normaliser"
 hasnt "unrelated requirement excluded" "$CTX" "REQ-04"
 
+echo "== 5c3. requirement ids are not all spelled REQ- =="
+# A project numbering by domain (ENG-01, LAYER-03) and writing checkbox bullets got NO
+# requirements block at all, and nothing said so.
+sandbox native-execute
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path(".planning/REQUIREMENTS.md")
+p.write_text("""# Requirements: Widget
+
+## v1 (must have)
+
+### Audio Engine
+
+- [ ] **ENG-01**: A drive parameter, range 0..100%, exposed to the host and displayed
+  as a whole percentage.
+- [ ] **ENG-02**: Antiderivative antialiasing keeps the alias floor below -80 dBFS.
+- [x] **LAYER-03**: One knob and a level meter in the webview.
+
+## Out of scope
+
+- Oversampling. (The compensation in ENG-02 is not a loudness normaliser.)
+""")
+r = pathlib.Path(".planning/ROADMAP.md"); t = r.read_text()
+t = t.replace("**Requirements**: REQ-01, REQ-02, REQ-03",
+              "**Requirements**: ENG-01, ENG-02, ENG-99\n"
+              "**Notes**: ids are UTF-8 text and the UI meets WCAG-2 contrast.")
+r.write_text(t)
+PY
+CTX="$("$GSDF" context 1)"
+has "domain-prefixed id is found"        "$CTX" "exposed to the host"
+has "and its wrapped continuation"       "$CTX" "as a whole percentage"
+has "second domain id too"               "$CTX" "alias floor below -80 dBFS"
+hasnt "uncited requirement excluded"     "$CTX" "One knob and a level meter"
+hasnt "out-of-scope mention is not a definition" "$CTX" "is not a loudness normaliser"
+has "a dangling cited id is named"       "$CTX" "not defined in REQUIREMENTS.md: ENG-99"
+hasnt "UTF-8 is not a requirement id"    "$CTX" "not defined in REQUIREMENTS.md: UTF-8"
+hasnt "WCAG-2 is not one either"         "$CTX" "WCAG-2]"
+# and a phase citing only undefined ids still says so rather than printing nothing
+sandbox native-execute
+sed -i.bak 's/^\*\*Requirements\*\*: REQ-01, REQ-02, REQ-03/**Requirements**: REQ-77/' .planning/ROADMAP.md
+rm -f .planning/*.bak
+has "all-dangling phase is not silent" "$("$GSDF" context 1)" "not defined in REQUIREMENTS.md: REQ-77"
+
 echo "== 5c2. a zero-padded decimal heading is the same phase as its normalized number =="
 # /gsdf:phase writes inserted phases padded ("### Phase 01.1:") while num normalizes to "1.1".
 # Comparing them literally found no entry, so context silently dropped the goal AND the
