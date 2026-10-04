@@ -27,6 +27,19 @@ def frontmatter(t):
     e = t.find("\n---", 3)
     if e < 0: return {}
     return {m[1]: m[2].strip() for m in (re.match(r"^([A-Za-z_][\w-]*):\s*(.*)$", l) for l in t[3:e].splitlines()) if m}
+def fm_value(t, *path):
+    """A frontmatter value that may be NESTED. frontmatter() is flat, but GSD-era planners write
+    `estimate:` / `  tokens: 70000` -- read flat, that key does not exist, and lint failed every
+    such plan for a field it actually carried."""
+    if not t.startswith("---"): return ""
+    e = t.find("\n---", 3)
+    body = t[3:e] if e > 0 else ""
+    for k in path[:-1]:
+        m = re.search(r"^[ \t]*%s:[ \t]*\n((?:[ \t]+.*(?:\n|$))+)" % re.escape(k), body, re.M)
+        if not m: return ""
+        body = m.group(1)
+    m = re.search(r"^[ \t]*%s:[ \t]*(.*)$" % re.escape(path[-1]), body, re.M)
+    return m.group(1).strip() if m else ""
 def as_list(v):
     v = (v or "").strip()
     if v.startswith("[") and v.endswith("]"): v = v[1:-1]
@@ -52,10 +65,18 @@ def roadmap_phases(pl):
         out[n] = name or ("phase-" + n)
     return out
 
-PDIR_RE = re.compile(r"^(\d{2,3}(?:\.\d+)?)-(.+)$")
+# GSD's `project_code` names directories `MS-22-slug` while the files inside stay `22-01-PLAN.md`.
+# Matching only a leading number made every such phase invisible: `plans 22` returned [], and
+# `phase dir 27` created a second, empty `27-slug/` beside the real one.
+PDIR_RE = re.compile(r"^(?:[A-Z][A-Z0-9]{0,7}-)?(\d{2,3}(?:\.\d+)?)-(.+)$")
 def dir_phases(pl):
     out = {}
-    for d in sorted((pl / "phases").glob("*")) if (pl / "phases").is_dir() else []:
+    code = str(config(pl).get("project_code") or "").strip()
+    # With a project_code, its prefixed directory is the real one; sort it first so a stray
+    # unprefixed duplicate (which older gsdf created) never shadows it.
+    ds = sorted((pl / "phases").glob("*"), key=lambda d: (not (code and d.name.startswith(code + "-")), d.name)) \
+         if (pl / "phases").is_dir() else []
+    for d in ds:
         m = PDIR_RE.match(d.name)
         if not (d.is_dir() and m): continue
         n = norm(m.group(1))
@@ -111,7 +132,32 @@ def phases(pl):
         prefix, sl, d = dp[n] if n in dp else (n.zfill(2), slug(rm[n]), None)
         out.append({"num": n, "prefix": prefix, "slug": sl, "dir": d, "name": rm.get(n, sl), "status": status_of(d, prefix)})
     return out
-def current(pl): return next((p for p in phases(pl) if p["status"] != "complete"), None)
+def progressed(p):
+    """Work has started here: a plan, a summary or an iterations file exists."""
+    d = p["dir"]
+    return bool(d and d.is_dir() and (any(d.glob(p["prefix"] + "-*-PLAN.md")) or iter_file(p).exists()))
+def current(pl, ph=None, warn=False):
+    """The first phase not complete -- except one that was executed but never formally approved
+    while a LATER phase has since started. That is a phase the user moved past (typically a
+    project adopted mid-flight), and pointing `next` back at it sent the session to iterate on
+    finished work while the real one was open. It is reported, not silently skipped."""
+    ph = ph if ph is not None else phases(pl)
+    open_ = [p for p in ph if p["status"] != "complete"]
+    for i, p in enumerate(open_):
+        later = [q for q in ph if key(q["num"]) > key(p["num"]) and progressed(q)]
+        if p["status"] == "iterate" and later:
+            if warn: sys.stderr.write("note: phase %s was executed but never approved, and phase %s has "
+                                      "since started — `gsdf phase advance %s` closes it\n"
+                                      % (p["prefix"], later[-1]["prefix"], p["prefix"]))
+            continue
+        return p
+    return None
+def new_dir(pl, p):
+    """Create a phase's directory the way this project names them."""
+    code = str(config(pl).get("project_code") or "").strip()
+    p["dir"] = pl / "phases" / ("%s%s-%s" % (code + "-" if code else "", p["prefix"], p["slug"]))
+    p["dir"].mkdir(parents=True, exist_ok=True)
+    return p["dir"]
 def find(pl, arg):
     ph = phases(pl)
     if arg in (None, "", "current"):
@@ -179,8 +225,51 @@ def cmd_state(pl):
     t = read(state_file(pl)) or die("STATE.md not found")
     fm = t[:t.find("\n---", 3) + 4] if t.startswith("---") and t.find("\n---", 3) > 0 else ""
     sp = head_span(t, POS)
+    # Lead with what the filesystem says, and name any frontmatter key that disagrees with it.
+    # STATE.md is read tolerantly, which must not mean it is believed over the tree.
+    tr, f = state_truth(pl), {}
+    for k in LEGACY:
+        m = re.search(r"^[ \t]*%s:[ \t]*(.*)$" % k, fm, re.M)
+        if m: f[k] = m.group(1).strip().strip("\"'")
+    stale = [k for k in ("current_phase", "completed_phases", "total_phases") if k in f
+             and norm_maybe(f[k]) != norm_maybe(tr[k])]
+    print("filesystem: phase %s (%s) · %s/%s phases complete" % (tr["current_phase"] or "-", tr["current_phase_name"],
+          tr["completed_phases"], tr["total_phases"]))
+    if stale: print("STALE in STATE.md: %s — trust the line above; `gsdf state sync` rewrites them"
+                    % ", ".join("%s=%s (is %s)" % (k, f[k], tr[k]) for k in stale))
+    print()
     print((fm + "\n" + (t[sp[0]:sp[2]] if sp else cap(t, 15))).strip())
+def norm_maybe(v):
+    try: return norm(v)
+    except ValueError: return v
 def write_state(pl, t): state_file(pl).write_text(t, encoding="utf-8")
+# Keys GSD writes into STATE.md that gsdf derives from the filesystem. gsdf only ever wrote
+# `phase:`, so a GSD-era STATE.md kept `current_phase: 01.1` / `completed_phases: 0` forever,
+# printed right above the truth -- and agents believed the stale line.
+LEGACY = ("current_phase", "current_phase_name", "completed_phases", "total_phases",
+          "percent", "completed_plans", "total_plans")
+def state_truth(pl, nxt=None):
+    ph = phases(pl)
+    nxt = nxt if nxt is not None else current(pl, ph)
+    allp = [x for p in ph for x in plans_of(p["dir"], p["prefix"])]
+    done = sum(1 for p in ph if p["status"] == "complete")
+    return {"current_phase": nxt["prefix"] if nxt else ph[-1]["prefix"] if ph else "",
+            "current_phase_name": nxt["name"] if nxt else "milestone-done",
+            "completed_phases": str(done), "total_phases": str(len(ph)),
+            "percent": str(int(100 * done / len(ph)) if ph else 0),
+            "completed_plans": str(sum(1 for x in allp if x["has_summary"])), "total_plans": str(len(allp))}
+def state_sync(pl, nxt=None):
+    """Rewrite whichever LEGACY keys the frontmatter already has, at any indentation (GSD nests
+    the counts under `progress:`). Keys that are absent stay absent -- gsdf adds nothing new."""
+    t = read(state_file(pl))
+    e = t.find("\n---", 3) if t.startswith("---") else -1
+    if e < 0: return
+    head, truth = t[3:e], state_truth(pl, nxt)
+    for k in LEGACY:
+        v = truth[k]
+        if k == "current_phase_name": v = json.dumps(v, ensure_ascii=False) if re.search(r"[:#]", v) else v
+        head = re.sub(r"^([ \t]*%s:)[ \t]*.*$" % k, lambda m: m.group(1) + " " + v, head, count=1, flags=re.M)
+    write_state(pl, "---" + head + t[e:])
 def state_set(pl, k, v):
     # The value is DATA, never a replacement template. Passing it as one made a backslash
     # an escape sequence -- `state set status "C:\temp\new"` silently stored "C:<tab>emp",
@@ -271,6 +360,31 @@ def req_blocks(text, wanted):
         if keep and line.strip(): out.append(line.rstrip())
     return out
 
+# Word budgets for the two sections that grow with the project. A real project measured
+# 2,000-5,500 tokens against spec 10's 2,500: twenty long decision lines alone ran to 1,100
+# words, and a previous phase's Delivered sections to 2,600. Lines, not words, were capped,
+# and dense prose makes a line cap meaningless.
+DEC_WORDS, PREV_WORDS = 450, 350
+def fit(lines, words, newest_last=False, more=""):
+    """Whole lines up to a word budget -- from the end when the newest matter most."""
+    src = list(reversed(lines)) if newest_last else list(lines)
+    out, n = [], 0
+    for l in src:
+        w = len(l.split())
+        if out and n + w > words: break
+        out.append(l); n += w
+    dropped = len([l for l in lines if l.strip()]) - len([l for l in out if l.strip()])
+    if newest_last: out.reverse()
+    if dropped > 0 and more: out.append("[%d more %s]" % (dropped, more))
+    return out
+def lead(bullet, words=30):
+    """A delivered bullet's claim without its evidence: the bold lead if it has one."""
+    b = bullet.strip()
+    m = re.match(r"^([-*]\s*(?:[✅❌⚠️]\s*)?)\*\*(.+?)\*\*", b)
+    if m: return m.group(1) + m.group(2)
+    w = b.split()
+    return " ".join(w[:words]) + (" …" if len(w) > words else "")
+
 def cmd_context(pl, p):
     out, cfg, proj = [], config(pl), read(pl / "PROJECT.md")
     out.append("## Project\n\n" + cap(section(proj, "Vision", "Overview", "Core Value") or cap(proj, 15), 15))
@@ -293,7 +407,8 @@ def cmd_context(pl, p):
                            "REQUIREMENTS.md: %s]" % ", ".join(miss))
     if blocks: out.append("## Requirements\n\n" + "\n".join(blocks))
     dec = section(read(state_file(pl)), "Decisions", "Decisions Made")
-    if dec: out.append("## Decisions\n\n" + tail(dec, 20))
+    if dec: out.append("## Decisions\n\n" + "\n".join(fit(tail(dec, 20).splitlines(), DEC_WORDS, True,
+                                                             "older — STATE.md ## Decisions")))
     ctx = p["dir"] and (p["dir"] / (p["prefix"] + "-CONTEXT.md"))
     if ctx and ctx.exists():
         body, full = read(ctx).strip(), read(ctx).strip().splitlines()
@@ -310,9 +425,13 @@ def cmd_context(pl, p):
     prev = [x for x in phases(pl) if key(x["num"]) < key(p["num"]) and x["dir"]]
     if prev:
         q = prev[-1]
-        b = [x for x in (section(read(f), "Delivered") + "\n" + section(read(f), "Iterations")
-             for f in sorted(q["dir"].glob(q["prefix"] + "-*-SUMMARY.md"))) if x.strip()]
-        if b: out.append("## Previous phase (%s)\n\n%s" % (q["prefix"], "\n\n".join(x.strip() for x in b)))
+        b = []
+        for f in sorted(q["dir"].glob(q["prefix"] + "-*-SUMMARY.md")):
+            for l in (section(read(f), "Delivered") + "\n" + section(read(f), "Iterations")).splitlines():
+                if l.strip() and not re.match(r"^\(.*until approve\)$", l.strip()):
+                    b.append(lead(l) if re.match(r"^\s*[-*]", l) else l.rstrip())
+        b = fit(b, PREV_WORDS, more="— %s-*-SUMMARY.md ## Delivered" % q["prefix"])
+        if b: out.append("## Previous phase (%s)\n\n%s" % (q["prefix"], "\n".join(b)))
         # Findings are the one artefact written to be reused, so hand them over
         # deterministically instead of hoping a lexical retriever surfaces them.
         # Titles only: the planner can open the file if a title looks relevant.
@@ -349,10 +468,16 @@ def cmd_lint(pl, p):
         bad.append("%s: circular depends_on among %s — nothing can go first, so waves() emits "
                    "them as one parallel wave, which is the opposite of what they declared"
                    % (p["prefix"], ", ".join(cyc)))
+    done = [x for x in pls if x["has_summary"]]
     for x in pls:
+        # An executed plan is history, not a candidate. lint is the gate BEFORE execute, and
+        # failing a GSD-era plan that already ran for lacking <fails_when> or `## Try it` -- which
+        # spec 4a says old plans may lack -- is noise that buries a real finding in a new plan.
+        if x["has_summary"]: continue
         f, txt = Path(x["file"]), read(x["file"])
         fm, pid = frontmatter(txt), "%s-%s" % (p["prefix"], x["id"])
-        try: est = int(re.sub(r"\D", "", fm.get("estimated_tokens", "")) or 0)
+        raw = fm.get("estimated_tokens") or fm_value(txt, "estimate", "tokens")
+        try: est = int(re.sub(r"\D", "", raw) or 0)
         except ValueError: est = 0
         if not est: bad.append("%s: no estimated_tokens" % pid)
         elif est >= 120000: bad.append("%s: estimated_tokens %d exceeds the 120000 executor budget" % (pid, est))
@@ -360,7 +485,9 @@ def cmd_lint(pl, p):
         v, fw = len(re.findall(r"<verify>", txt)), len(re.findall(r"<fails_when>", txt))
         if v and fw < v: bad.append("%s: %d <verify> but only %d <fails_when> — a command with no expressible failure mode is not an acceptance test" % (pid, v, fw))
         if not v: bad.append("%s: no <verify> in any task" % pid)
-        if len(re.findall(r"<task", txt)) > len(re.findall(r"<done>", txt)):
+        # `<task[\s>]`, not `<task`: the latter also counted the `<tasks>` CONTAINER, so every
+        # plan written with one reported a missing <done> it did not have.
+        if len(re.findall(r"<task[\s>]", txt)) > len(re.findall(r"<done>", txt)):
             bad.append("%s: a task has no <done>" % pid)
         if not section(txt, "Try it"): bad.append("%s: no '## Try it' — the user cannot see the result" % pid)
     # Zero plans is not zero problems. /gsdf:plan runs this as its gate, so a planner
@@ -371,8 +498,10 @@ def cmd_lint(pl, p):
         print("phase %s: no PLAN.md files — nothing to execute" % p["prefix"])
         sys.exit(1)
     for b in bad: print(b)
+    if done: print("(%d already-executed plan(s) not gated: %s)" % (len(done), ", ".join(x["id"] for x in done)))
     if bad: sys.exit(1)
-    print("phase %s: %d plan(s) pass all gates" % (p["prefix"], n))
+    if n == len(done): return print("phase %s: every plan already executed — nothing to gate" % p["prefix"])
+    print("phase %s: %d plan(s) pass all gates" % (p["prefix"], n - len(done)))
 
 def cmd_tryit(pl, p):
     files = sorted(p["dir"].glob(p["prefix"] + "-*-SUMMARY.md")) if p["dir"] else []
@@ -504,33 +633,95 @@ def phase_files(pl, p):
     return sorted(out)
 
 
-PARAM_RE = re.compile(r'ParameterID\s*\{?\s*"([^"]+)"\s*,\s*(\d+)')
+# ParameterID { <id>, <version> } with either side a literal OR a named constant. Tonn writes
+# ParameterID { tonalCentre, kVersion } against `inline constexpr const char* tonalCentre =
+# "tonalCentre"`; a literal-only pattern found zero parameters there and locked an empty ABI.
+PARAM_RE = re.compile(r'ParameterID\s*[{(]\s*("[^"]*"|[A-Za-z_][\w:]*)\s*,\s*(\d+|[A-Za-z_][\w:]*)\s*[})]')
+STR_CONST = re.compile(r'\b(?:constexpr|const)\b[^;=\n]*?\b([A-Za-z_]\w*)\s*(?:\[\])?\s*(?:=|\{)\s*(?:juce::String\s*\(\s*)?"([^"]*)"')
+INT_CONST = re.compile(r'\b(?:constexpr|const)\b[^;=\n]*?\bint\s+([A-Za-z_]\w*)\s*(?:=|\{)\s*(\d+)')
+# Never another codebase's parameters. alive_medium vendors JUCE under plugin/JUCE, and its
+# example plugins put `gain`, `delay` and `uniqueID` into that project's lock.
+VENDORED = {"juce", "third_party", "thirdparty", "external", "extern", "vendor", "vendored",
+            "deps", "libs", "lib", "node_modules", "examples", "modules", "submodules", ".git"}
 
-def scan_params(root):
-    """Every juce::ParameterID in declaration order, as [(id, version), ...]."""
+def param_sources(root):
+    """C++ sources this project owns. Tracked files when it is a git repo -- that also drops
+    submodules, which ls-files lists only as a gitlink -- else a walk; vendored trees skipped."""
+    exts = (".cpp", ".h", ".hpp", ".cc", ".mm")
+    try:
+        r = subprocess.run(["git", "ls-files", "-z", "--", "*.cpp", "*.h", "*.hpp", "*.cc", "*.mm"],
+                           cwd=root, capture_output=True, text=True, timeout=30)
+        files = [root / x for x in r.stdout.split("\0") if x] if r.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        files = None
+    if files is None:
+        files = []
+        # iterdir, not root / name: on a case-insensitive disk "Source" exists when "source"
+        # does, and the path would carry the wrong case into every message
+        for d in sorted(root.iterdir()):
+            if d.is_dir() and d.name.lower() in ("source", "src", "plugin", "dsp"):
+                files += [f for f in d.rglob("*") if f.suffix in exts]
     out, seen = [], set()
-    for d in ("source", "Source", "src", "plugin", "dsp"):
-        base = root / d
-        # De-duplicate by INODE, not by path. macOS is case-insensitive, so "source"
-        # and "Source" are one directory — but resolve() keeps whichever case you
-        # asked for, so the two produce different strings and a path-keyed set lets
-        # both through. Scanning it twice counted every parameter twice, which would
-        # have read as phantom duplicate ids in the lock file.
-        if not base.is_dir():
+    for f in sorted(files):
+        rel = f.relative_to(root).parts
+        if any(x.lower() in VENDORED or x.lower().startswith(("build", "cmake-build")) for x in rel[:-1]):
             continue
-        st = base.stat()
-        if (st.st_dev, st.st_ino) in seen:
-            continue
-        seen.add((st.st_dev, st.st_ino))
-        for f in sorted(base.rglob("*.cpp")) + sorted(base.rglob("*.h")):
-            fs = f.stat()
-            if (fs.st_dev, fs.st_ino) in seen:
-                continue
-            seen.add((fs.st_dev, fs.st_ino))
-            for m in PARAM_RE.finditer(read(f)):
-                out.append((m.group(1), int(m.group(2))))
+        if f.suffix not in exts or not f.is_file(): continue
+        # De-duplicate by INODE: macOS is case-insensitive, so "source" and "Source" are one
+        # directory but two path strings, and a path-keyed set scanned it twice.
+        st = f.stat()
+        if (st.st_dev, st.st_ino) in seen: continue
+        seen.add((st.st_dev, st.st_ino)); out.append(f)
     return out
 
+def strip_comments(t):
+    """Drop comments, keep line numbers, and leave string literals alone -- a doc comment that
+    shows `ParameterID { id, kVersion }` is not a parameter, and "https://" is not a comment."""
+    return re.sub(r'"(?:\\.|[^"\\\n])*"|//[^\n]*|/\*.*?\*/',
+                  lambda m: m.group(0) if m.group(0)[0] == '"' else "\n" * m.group(0).count("\n"), t, flags=re.S)
+
+def scan_params(root):
+    """Every juce::ParameterID in declaration order, as ([(id, version), ...], [unresolved]).
+
+    `unresolved` names each ParameterID whose id could not be read statically -- an id built at
+    runtime, `"s" + std::to_string (n) + "_alive"`, is invisible to any scan. Reporting those is
+    what stops a lock of 0 (or of a few stray ids) from passing for the real contract."""
+    texts = [(f, strip_comments(read(f))) for f in param_sources(root)]
+    strs, ints = {}, {}
+    for _, t in texts:
+        for m in STR_CONST.finditer(t): strs.setdefault(m.group(1), m.group(2))
+        for m in INT_CONST.finditer(t): ints.setdefault(m.group(1), int(m.group(2)))
+    out, unresolved = [], []
+    for f, t in texts:
+        for at in re.finditer(r"\bParameterID\s*[{(]", t):
+            m = PARAM_RE.match(t, at.start())
+            if not m:
+                # ParameterID { juce::String (id), kHint } -- an id that only exists at runtime
+                unresolved.append("%s:%d %s" % (f.relative_to(root), t[:at.start()].count("\n") + 1,
+                                                re.sub(r"\s+", " ", t[at.start():at.start() + 70]).split(";")[0]))
+                continue
+            i, v = m.group(1), m.group(2)
+            pid = i[1:-1] if i.startswith('"') else strs.get(i.split("::")[-1])
+            ver = int(v) if v.isdigit() else ints.get(v.split("::")[-1])
+            if pid is None or ver is None:
+                unresolved.append("%s:%d %s" % (f.relative_to(root), t[:m.start()].count("\n") + 1,
+                                                re.sub(r"\s+", " ", m.group(0))))
+            else:
+                out.append((pid, ver))
+    return out, unresolved
+
+def params_from_cmd(pl, cmd):
+    """config.json `params_cmd`: a command printing the real layout, one `id [version]` per line.
+    The only honest source for ids that exist only at runtime -- a test binary that walks the
+    processor's AudioProcessorValueTreeState can print exactly what a host sees."""
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=pl.parent)
+    if r.returncode: die("params_cmd failed (exit %d): %s" % (r.returncode, ((r.stdout + r.stderr).strip().splitlines() or [""])[-1][:160]))
+    out = []
+    for l in r.stdout.splitlines():
+        w = l.split()
+        if not w or w[0].startswith("#"): continue
+        out.append((w[0], int(w[1]) if len(w) > 1 and w[1].isdigit() else 1))
+    return out
 
 def cmd_params(pl, p, write=False):
     """Guard the parameter ABI: order is the contract, and removal is forever.
@@ -543,14 +734,42 @@ def cmd_params(pl, p, write=False):
     Off until a release exists (`abi_frozen: true` in config.json): before you ship,
     churn is exactly what you want.
     """
-    root = pl.parent
-    cur = scan_params(root)
+    root, cfg = pl.parent, config(pl)
     lock_f = pl / "params.lock"
-    if write or not lock_f.exists():
+    if cfg.get("params_cmd"):
+        cur, unresolved, src = params_from_cmd(pl, cfg["params_cmd"]), [], "params_cmd"
+    else:
+        (cur, unresolved), src = scan_params(root), "source scan"
+    if unresolved:
+        # A partial lock is worse than none: it passes while guarding a fraction of the contract.
+        print("cannot read every parameter id statically — %d ParameterID(s) are built at runtime:" % len(unresolved))
+        for u in unresolved[:5]: print("  " + u)
+        if len(unresolved) > 5: print("  … and %d more" % (len(unresolved) - 5))
+        print("Set `params_cmd` in config.json to a command that prints the real layout, one\n"
+              "`id version` per line (e.g. a test binary that walks the APVTS). Nothing written.")
+        return 1
+    if not cur:
+        print("no juce::ParameterID found (%s) — nothing to guard. Nothing written.\n"
+              "If the plugin has parameters, set `params_cmd` in config.json." % src)
+        return 0 if not lock_f.exists() else 1
+    dup = sorted({i for i, _ in cur if [x for x, _ in cur].count(i) > 1})
+    if dup: print("warning: id declared more than once: %s" % ", ".join(dup))
+    if write:
         lock_f.write_text(json.dumps([{"id": i, "version": v} for i, v in cur], indent=1) + "\n")
-        print("wrote %s — %d parameter(s)" % (lock_f, len(cur)))
+        print("wrote %s — %d parameter(s) from %s" % (lock_f, len(cur), src))
         return 0
-    if not config(pl).get("abi_frozen"):
+    if not lock_f.exists():
+        # Reading never writes. It used to create the lock on first call, silently, from
+        # whatever the scan happened to find -- including nothing.
+        print("%d parameter(s) from %s, no params.lock yet: %s\n`gsdf params --write` locks them."
+              % (len(cur), src, ", ".join(i for i, _ in cur[:12]) + (" …" if len(cur) > 12 else "")))
+        return 0
+    if read(lock_f).strip() in ("[]", ""):
+        # Older gsdf wrote the lock on first read from whatever it found -- often nothing.
+        print("params.lock is empty, but %d parameter(s) exist — it guards nothing.\n"
+              "`gsdf params --write` locks them." % len(cur))
+        return 1 if cfg.get("abi_frozen") else 0
+    if not cfg.get("abi_frozen"):
         print("abi_frozen is not set in config.json — %d parameter(s), not enforced.\n"
               "Set it when the first release ships; before that, churn is fine." % len(cur))
         return 0
@@ -585,6 +804,19 @@ def cmd_params(pl, p, write=False):
     print("parameter ABI intact — %d parameter(s), order and ids unchanged" % len(cur))
     return 0
 
+
+def verify_cmds(txt):
+    """The shell commands in a plan's <verify> blocks. GSD-era plans nest one or more
+    `<automated>` elements inside <verify>; handing the whole block to /bin/sh ran the tags
+    as shell syntax, so every command exited 2 and verify reported 0/N with no real signal."""
+    out = []
+    for m in re.finditer(r"<verify>(.*?)</verify>", txt, re.S):
+        body = m.group(1)
+        auto = re.findall(r"<automated>(.*?)</automated>", body, re.S)
+        if auto: out.extend(a.strip() for a in auto if a.strip())
+        elif body.strip() and not re.search(r"</?[a-z_]+>", body): out.append(body.strip())
+        # any other tagged body is prose or a manual check -- not something to run
+    return out
 
 def cmd_verify(pl, p):
     """Run the phase's verification and report honestly. Exit non-zero on failure.
@@ -621,9 +853,8 @@ def cmd_verify(pl, p):
         # green without a project-level build, and silence would misreport that.
         seen, pv = set(), []
         for pl_ in plans_of(p["dir"], p["prefix"]):
-            for m in re.finditer(r"<verify>(.*?)</verify>", read(Path(pl_["file"])), re.S):
-                c = m.group(1).strip()
-                if c and c not in seen:
+            for c in verify_cmds(read(Path(pl_["file"]))):
+                if c not in seen:
                     seen.add(c); pv.append(("plan %s" % pl_["id"], c))
         cmds, src = pv, "plan <verify> blocks"
     if not cmds:
@@ -693,7 +924,7 @@ def cmd_next(pl):
         # project, never a finished milestone — saying milestone-done here would invite
         # progress --next to archive and tag a project that has done nothing.
         return print("new-project")
-    p = next((x for x in ph if x["status"] != "complete"), None)
+    p = current(pl, ph, warn=True)
     print("milestone-done" if not p else "%s %s" % (p["status"], p["prefix"]))
 def cmd_list(pl):
     print("| NN | slug | status | plans | done | iterations |\n|---|---|---|---|---|---|")
@@ -706,8 +937,7 @@ def cmd_advance(pl, p=None):
     phase's ITERATIONS approved first, so by the time advance runs, current() has already
     moved on and advance would mark the NEXT, unstarted phase complete."""
     p = p or current(pl) or die("every phase is already complete")
-    if not p["dir"]:
-        p["dir"] = pl / "phases" / ("%s-%s" % (p["prefix"], p["slug"])); p["dir"].mkdir(parents=True, exist_ok=True)
+    if not p["dir"]: new_dir(pl, p)
     iter_approve(p)
     t = read(pl / "ROADMAP.md"); orig = t
     # Same padding tolerance as roadmap_entry, and for the same reason: without it an inserted
@@ -722,6 +952,7 @@ def cmd_advance(pl, p=None):
     (pl / "ROADMAP.md").write_text(t, encoding="utf-8")
     nxt = next((x for x in phases(pl) if key(x["num"]) > key(p["num"]) and x["status"] != "complete"), None) or current(pl)
     state_set(pl, "phase", nxt["prefix"] if nxt else p["prefix"])
+    state_sync(pl, nxt)
     print("Phase %s complete. Next: %s" % (p["prefix"], (nxt["prefix"] + " " + nxt["slug"]) if nxt else "milestone-done"))
 def cmd_quick_new(pl, s):
     q = pl / "quick"; q.mkdir(exist_ok=True)
@@ -933,12 +1164,55 @@ def cmd_bug(text):
     bug_record("report", text)
     print("recorded. %s" % BUGLOG)
 
-def cmd_bugs(clear=False):
-    """Group, count and print. Compact on purpose -- this output is read in a context window."""
+def bug_recs():
     recs = []
     for line in read(BUGLOG).splitlines():
         try: recs.append(json.loads(line))
         except json.JSONDecodeError: pass
+    return recs
+def bug_key(r):
+    # crashes dedup by site + exception type; reports by their text
+    return (r.get("w", "") + "|" + r.get("m", "").split(":")[0]) if r.get("k") == "crash" else r.get("m", "").strip().lower()
+def bug_id(k):
+    """Stable 4-hex id per group. A position in the listing would shift as reports arrive, and
+    `--fixed 3` must never retire a different bug than the one that was read."""
+    return hashlib.sha1(k.encode()).hexdigest()[:4]
+def bug_groups(recs):
+    groups = {}
+    for r in recs:
+        k = bug_key(r)
+        g = groups.setdefault(k, {"id": bug_id(k), "n": 0, "r": r, "vs": set(), "last": ""})
+        g["n"] += 1; g["vs"].add(r.get("v", "?")); g["last"] = max(g["last"], r.get("t", ""))
+        if r.get("k") == "crash": g["r"] = r
+    return groups
+
+def cmd_bugs_count():
+    """One line or nothing -- for a SessionStart hook in the GSDF repo, where the log would
+    otherwise sit unread. Recording was always cheap; nothing made anyone look."""
+    n = len(bug_groups(bug_recs()))
+    if n: print("gsdf: %d open bug report(s) in %s — run `gsdf bugs`, fix with a regression test, "
+                "then `gsdf bugs --fixed <id> \"<commit>\"`" % (n, BUGLOG))
+
+def cmd_bugs_fixed(bid, note=""):
+    """Retire ONE group to the archive, stamped with what fixed it. --clear was all-or-nothing,
+    so fixed reports sat next to open ones until everything was done."""
+    recs = bug_recs()
+    hit = [r for r in recs if bug_id(bug_key(r)) == bid.lstrip("#")]
+    if not hit: die("no open bug with id %s — `gsdf bugs` lists them" % bid)
+    keep = [r for r in recs if r not in hit]
+    stamp = {"fixed": datetime.now().strftime("%Y-%m-%d %H:%M"), "fixed_in": VERSION}
+    if note: stamp["fix"] = note[:200]
+    with open(BUGLOG.with_suffix(".archive.jsonl"), "a", encoding="utf-8") as fh:
+        for r in hit: fh.write(json.dumps({**r, **stamp}, ensure_ascii=False) + "\n")
+    with open(BUGLOG, "w", encoding="utf-8") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        fh.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in keep))
+        fcntl.flock(fh, fcntl.LOCK_UN)
+    print("retired #%s (%d record(s)) — %d open" % (bid.lstrip("#"), len(hit), len(bug_groups(keep))))
+
+def cmd_bugs(clear=False):
+    """Group, count and print. Compact on purpose -- this output is read in a context window."""
+    recs = bug_recs()
     if not recs:
         return print("no bugs recorded (%s)" % BUGLOG)
     if clear:
@@ -946,21 +1220,15 @@ def cmd_bugs(clear=False):
         with open(arch, "a", encoding="utf-8") as fh: fh.write(read(BUGLOG))
         BUGLOG.write_text("")
         return print("archived %d record(s) -> %s" % (len(recs), arch))
-    groups = {}
-    for r in recs:
-        # crashes dedup by site + exception type; reports by their text
-        k = (r.get("w", "") + "|" + r.get("m", "").split(":")[0]) if r.get("k") == "crash" else r.get("m", "").strip().lower()
-        g = groups.setdefault(k, {"n": 0, "r": r, "vs": set(), "last": ""})
-        g["n"] += 1; g["vs"].add(r.get("v", "?")); g["last"] = max(g["last"], r.get("t", ""))
-        if r.get("k") == "crash": g["r"] = r
+    groups = bug_groups(recs)
     print("%d distinct, %d occurrence(s)   %s\n" % (len(groups), len(recs), BUGLOG))
     for g in sorted(groups.values(), key=lambda x: (-x["n"], x["last"])):
         r = g["r"]
-        print("[%dx] %-6s %s" % (g["n"], r.get("k", "?"), r.get("m", "")))
+        print("#%s [%dx] %-6s %s" % (g["id"], g["n"], r.get("k", "?"), r.get("m", "")))
         bits = [x for x in (r.get("w", ""), "gsdf " + r.get("a", "") if r.get("a") else "",
                             "v" + ",".join(sorted(g["vs"])), g["last"]) if x]
         print("      " + "  |  ".join(bits))
-    print("\nFix, then: gsdf bugs --clear")
+    print("\nFixed one: gsdf bugs --fixed <id> \"<commit>\"   (all: --clear)")
 
 # ---------- trace ----------
 # A real phase, run end to end, is the only thing that checks whether the COMMANDS do what
@@ -1024,15 +1292,59 @@ def cmd_trace(arg):
     if fails: print("\n%d call(s) exited non-zero — expected for a gate that fired, a bug otherwise." % len(fails))
     print("\nAnything wrong here: gsdf bug \"<one line>\"")
 
+USAGE = {
+    "init":      "gsdf init <name>              scaffold .planning/ here (writes)",
+    "adopt":     "gsdf adopt                    fill config.json from the build it detects (writes)",
+    "next":      "gsdf next                     the next step: plan|execute|iterate|blocked NN, or milestone-done",
+    "state":     "gsdf state [set <k> <v>|note|defer|position \"<text>\"|sync]   read STATE.md; subcommands write",
+    "phase":     "gsdf phase list|current|dir [N]|advance N   dir creates the directory; advance writes",
+    "plans":     "gsdf plans [N]                plans of a phase, as JSON",
+    "waves":     "gsdf waves [N]                execution waves, as JSON",
+    "conflicts": "gsdf conflicts [N]            exit 1 if two plans in one wave write the same file",
+    "lint":      "gsdf lint [N]                 plan gates; exit 1 naming the plan and the problem",
+    "context":   "gsdf context [N]              the planner's briefing for a phase",
+    "tryit":     "gsdf tryit [N]                what to try, from the phase's summaries",
+    "iter":      "gsdf iter start|log|list|count|approve [N] [\"<text>\"]   log/start/approve write",
+    "quick":     "gsdf quick [new <slug>]       list quick tasks, or create one (writes)",
+    "verify":    "gsdf verify [N]               run the phase's checks; exit 0 pass / 1 fail / 2 nothing configured",
+    "findings":  "gsdf findings [N]             FINDING: lines and summary ## Findings",
+    "params":    "gsdf params [N] [--write]     parameter ABI guard; reads only, --write (re)locks params.lock",
+    "update":    "gsdf update [--check] [--force] [--main]   compare with GitHub, reinstall when behind",
+    "bug":       "gsdf bug \"<one line>\"        record a GSDF bug you just hit, then carry on",
+    "bugs":      "gsdf bugs [--count] [--fixed <id> [note]] [--clear]   open bug reports; --fixed retires one",
+    "trace":     "gsdf trace on|off|show        record a real run's call sequence and check it",
+    "version":   "gsdf --version                version, install path, and open bug count",
+}
+def cmd_help(c=None):
+    if c in USAGE: return print("usage: " + USAGE[c])
+    print(__doc__.strip() + "\n")
+    for v in USAGE.values(): print("  " + v)
+    print("\nN defaults to the current phase. `gsdf <command> --help` for one command.")
+    # Last line stays machine-readable: the conformance suite checks the docs against it.
+    print("Subcommands: " + " ".join(k for k in USAGE if k != "version"))
+
 def main(a):
     c = a[0] if a else "next"
-    if c == "init": return cmd_init(a[1] if len(a) > 1 else die("usage: gsdf init <name>"))
+    if c in ("-h", "--help", "help"): return cmd_help(a[1] if len(a) > 1 else None)
+    # Help after ANY subcommand is a request for help, never an argument: `bug --help` filed a
+    # bug reading "--help", and `init --help` scaffolded a project named "--help".
+    if len(a) == 2 and a[1] in ("-h", "--help", "help"): return cmd_help(c)
+    if c == "init":
+        if len(a) < 2 or a[1].startswith("-"): die("usage: " + USAGE["init"])
+        return cmd_init(a[1])
     if c in ("-V", "--version", "version"):
-        return print("gsdf %s  (%s)" % (VERSION, Path(__file__).resolve()))
-    if c in ("-h", "--help", "help"): return print(__doc__ + "\nSubcommands: init adopt update bug bugs trace state next phase plans waves conflicts lint context tryit iter quick verify findings params")
+        n = len(bug_groups(bug_recs()))
+        return print("gsdf %s  (%s)%s" % (VERSION, Path(__file__).resolve(),
+                     "\n%d open bug report(s) — gsdf bugs" % n if n else ""))
     if c == "trace": return cmd_trace(a[1] if len(a) > 1 else "show")
     if c == "bug": return cmd_bug(" ".join(a[1:]).strip())
-    if c == "bugs": return cmd_bugs("--clear" in a)
+    if c == "bugs":
+        if "--fixed" in a:
+            i = a.index("--fixed")
+            if len(a) <= i + 1: die("usage: " + USAGE["bugs"])
+            return cmd_bugs_fixed(a[i + 1], " ".join(a[i + 2:]).strip())
+        if "--count" in a: return cmd_bugs_count()
+        return cmd_bugs("--clear" in a)
     if c == "update":
         # update returns before the generic flag check below, so it validates its own --
         # otherwise `gsdf update --forse` would quietly not force.
@@ -1061,6 +1373,8 @@ def main(a):
             with locked(pl): return state_append(pl, r"Deferred(?:[ \t]+Items)?", "Deferred", "- %s — %s" % (date.today().isoformat(), txt))
         if s == "position":
             with locked(pl): return state_position(pl, txt)
+        if s == "sync":
+            with locked(pl): state_sync(pl); return cmd_state(pl)
         die("unknown: gsdf state %s" % s)
     if c == "phase":
         s = a[1] if len(a) > 1 else "current"
@@ -1070,8 +1384,7 @@ def main(a):
         p = find(pl, a[2] if len(a) > 2 else None)
         if s == "current": return print("%s %s %s" % (p["prefix"], p["slug"], p["status"]))
         if s == "dir":
-            if not p["dir"]:
-                p["dir"] = pl / "phases" / ("%s-%s" % (p["prefix"], p["slug"])); p["dir"].mkdir(parents=True, exist_ok=True)
+            if not p["dir"]: new_dir(pl, p)
             return print(p["dir"].resolve())
         die("unknown: gsdf phase %s" % s)
     if c == "quick":
@@ -1096,6 +1409,9 @@ def main(a):
     unknown = [x for x in a[1:] if x.startswith("-") and x not in ("--write",)]
     if unknown: die("unknown option: %s (try `gsdf help`)" % unknown[0])
     pos = [x for x in a[1:] if not x.startswith("-")]
+    # The ABI is the project's, not a phase's: resolving one first made `params` die with
+    # "every phase is complete" on a finished milestone -- exactly when it matters most.
+    if c == "params": sys.exit(cmd_params(pl, None, "--write" in a))
     p = find(pl, pos[0] if pos else None)
     if c == "plans": return print(json.dumps([{k: v for k, v in x.items() if k != "has_depends"} for x in plans_of(p["dir"], p["prefix"])], indent=2))
     if c == "waves": return print(json.dumps(waves(plans_of(p["dir"], p["prefix"]))))
@@ -1105,7 +1421,6 @@ def main(a):
     if c == "tryit": return cmd_tryit(pl, p)
     if c == "verify": sys.exit(cmd_verify(pl, p))
     if c == "findings": return cmd_findings(pl, p)
-    if c == "params": sys.exit(cmd_params(pl, p, "--write" in a))
     die("unknown subcommand: %s (try `gsdf help`)" % c)
 
 if __name__ == "__main__":

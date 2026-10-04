@@ -339,15 +339,16 @@ gsdf lint <N>                        # plan gates; exit 1 naming the plan and th
 gsdf conflicts <N>                   # exit 1 if two plans in one wave write the same file
 gsdf verify <N>                      # run config verify, else plan <verify>; exit 0 pass / 1 fail / 2 nothing configured
 gsdf findings <N>                    # FINDING: iteration lines + "## Findings" summary sections
-gsdf params <N> [--write]            # parameter ABI guard; --write re-locks (§5.5)
+gsdf params [--write]                # parameter ABI guard; reads only, --write locks (§5.5)
 gsdf update [--check] [--force] [--main]  # compare against GitHub, reinstall when behind (§5.6)
 gsdf bug "<one line>"                # record a GSDF bug hit during real use (§5.7)
-gsdf bugs [--clear]                  # grouped list; --clear archives
+gsdf bugs [--count] [--fixed <id> [note]] [--clear]   # open reports; --fixed retires one
 gsdf trace on|off|show               # record a real run's call sequence, check it (§5.8)
 ```
 
 Flags are never positional: the phase is taken from the first argument that is not a `-` flag,
-so `gsdf params --write` means the current phase rather than a phase called `--write`. An
+so a flag is never read as a phase called `--write`. (`params` takes no phase at all: the ABI
+belongs to the project, and resolving a phase made it fail on a finished milestone.) An
 unrecognised flag is an error — `gsdf context --phase 2` must not quietly print the current
 phase and look like it worked.
 
@@ -370,8 +371,14 @@ real effort will not happen at that moment, so it has to cost nearly nothing.
   exclusive lock; a corrupt line is skipped, never fatal; recording never raises, because
   failing to record a bug must not become one.
 - `gsdf bugs` groups (crashes by frame + exception type, reports by text, case-insensitive),
-  counts, and prints compactly — it is read inside a context window. `--clear` appends to
-  `gsdf-bugs.archive.jsonl` and truncates, rather than deleting.
+  counts, and prints compactly — it is read inside a context window. Each group has a stable
+  4-hex id (a hash of its key, not its position, so a new report never renumbers an old one).
+  `--fixed <id> "<commit>"` moves that one group to `gsdf-bugs.archive.jsonl`, stamped with the
+  note and version; `--clear` archives everything.
+- The log only helps if it is read. `gsdf bugs --count` prints one line, or nothing when the log
+  is empty, for a SessionStart hook in the GSDF repo; `gsdf --version` adds the same count.
+- `gsdf <command> --help` prints that command's usage and never runs it. A lone `--help` after a
+  subcommand used to be taken as its argument: `bug --help` filed a bug reading "--help".
 
 Frame matching resolves **both** sides of the path comparison: the traceback carries the path as
 invoked, and the normal install is reached through a symlink, so comparing a raw filename to a

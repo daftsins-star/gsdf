@@ -201,7 +201,9 @@ hasnt "phase 1's checkbox untouched" "$RM" "- [x] **Phase 1: Drive**"
 
 echo "== 5d. gsdf lint is the plan gate, as a command not a prose instruction =="
 cd "$FIX/native-execute"
-is "a good phase passes" "$("$GSDF" lint 1)" "phase 01: 2 plan(s) pass all gates"
+OUT=$("$GSDF" lint 1)
+has "a good phase passes" "$OUT" "phase 01: 1 plan(s) pass all gates"
+has "an executed plan is history, not gated" "$OUT" "(1 already-executed plan(s) not gated: 01)"
 sandbox native-execute
 P=.planning/phases/01-drive/01-02-PLAN.md
 sed -i.bak 's|^ *<fails_when>.*$||' $P && rm -f .planning/phases/01-drive/*.bak
@@ -391,7 +393,11 @@ T=$(mktemp -d); mkdir -p "$T/.planning/phases" "$T/source"
 printf '{"verify":{},"abi_frozen":true}' > "$T/.planning/config.json"
 printf '# Roadmap\n\n### Phase 1: X\n**Goal**: x\n' > "$T/.planning/ROADMAP.md"
 printf 'ParameterID { "gain", 1 }\nParameterID { "mix", 1 }\n' > "$T/source/P.cpp"
-cd "$T"; "$GSDF" params 1 >/dev/null 2>&1
+cd "$T"
+OUT=$("$GSDF" params 1 2>&1)
+has "params never writes without --write" "$OUT" "no params.lock yet"
+[ -e .planning/params.lock ] && bad "read-only params" "no lock" "lock written" || ok "reading params wrote nothing"
+"$GSDF" params 1 --write >/dev/null 2>&1
 # macOS is case-insensitive: "source" and "Source" are one directory but resolve to
 # different strings, so a path-keyed de-dup counted every parameter twice.
 N=$(python3 -c "import json;print(len(json.load(open('.planning/params.lock'))))")
@@ -679,6 +685,127 @@ BEFORE=$(wc -l < "$GSDF_TRACE_FILE" | tr -d ' ')
 cd "$W/p"; "$GSDF" next >/dev/null 2>&1
 is "off means off" "$(wc -l < "$GSDF_TRACE_FILE" | tr -d ' ')" "$BEFORE"
 cd "$ROOT"; unset GSDF_TRACE_ON GSDF_TRACE_FILE; rm -rf "$TR" "$W"
+
+echo "== 12z. field reports from gsdf-bugs.jsonl, each reproduced =="
+# Every case here is a report from real use. Each was a silent wrong answer, not a crash.
+mkfx() { T=$(mktemp -d); mkdir -p "$T/.planning/phases"; cd "$T"
+  printf '# Roadmap\n\n### Phase 1: One\n**Goal**: a\n\n### Phase 2: Two\n**Goal**: b\n\n### Phase 3: Three\n**Goal**: c\n' > .planning/ROADMAP.md
+  printf '{"verify":{}}' > .planning/config.json; }
+plan() { printf -- '---\nphase: %s\nplan: %s\nestimated_tokens: 1000\nrequirements: [X-1]\n---\n<task id="1"><verify>true</verify><fails_when>x</fails_when><done>d</done></task>\n## Try it\nx\n' "$2" "$3" > "$1"; }
+
+# project_code: GSD names dirs MS-22-slug, files stay 22-01-PLAN.md
+mkfx; printf '{"verify":{},"project_code":"MS"}' > .planning/config.json
+mkdir -p .planning/phases/MS-01-one; plan .planning/phases/MS-01-one/01-01-PLAN.md 01 01
+is "project_code dir: plans are found" "$("$GSDF" plans 1 | python3 -c 'import json,sys;print(len(json.load(sys.stdin)))')" "1"
+D=$("$GSDF" phase dir 2); has "project_code dir: new phase dir is prefixed" "$D" "/MS-02-two"
+hasnt "project_code dir: no unprefixed twin" "$(ls .planning/phases)" "02-two
+"
+mkdir -p .planning/phases/01-one-stray
+has "project_code dir beats an unprefixed duplicate" "$("$GSDF" phase list 2>/dev/null)" "| 01 | one | execute | 1 |"
+cd "$ROOT"; rm -rf "$T"
+
+# lint: nested estimate.tokens, and the <tasks> container is not a task
+mkfx; mkdir -p .planning/phases/01-one
+printf -- '---\nphase: 01\nplan: 01\nrequirements: [X-1]\nestimate:\n  tokens: 70000\n  confidence: low\n---\n<tasks>\n<task type="auto"><verify><automated>true</automated></verify><fails_when>x</fails_when><done>d</done></task>\n</tasks>\n## Try it\nx\n' > .planning/phases/01-one/01-01-PLAN.md
+OUT=$("$GSDF" lint 1 2>&1)
+hasnt "lint reads nested estimate.tokens" "$OUT" "no estimated_tokens"
+hasnt "lint does not count <tasks> as a task" "$OUT" "has no <done>"
+# verify: <automated> children are the commands, not the XML around them
+printf -- '---\nphase: 01\nplan: 02\n---\n<verify>\n  <automated>true</automated>\n  <automated>exit 3</automated>\n</verify>\n' > .planning/phases/01-one/01-02-PLAN.md
+OUT=$("$GSDF" verify 1 2>&1)
+hasnt "verify never hands tags to the shell" "$OUT" "syntax error"
+has "verify runs each <automated> command" "$OUT" "verify: 1/2 passed"
+cd "$ROOT"; rm -rf "$T"
+
+# next: an executed-but-unapproved phase the user has moved past is not "current"
+mkfx; mkdir -p .planning/phases/01-one .planning/phases/02-two
+plan .planning/phases/01-one/01-01-PLAN.md 01 01; printf -- '---\nstatus: complete\n---\n' > .planning/phases/01-one/01-01-SUMMARY.md
+plan .planning/phases/02-two/02-01-PLAN.md 02 01
+is "next skips a phase that was moved past" "$("$GSDF" next 2>/dev/null)" "execute 02"
+has "next says why" "$("$GSDF" next 2>&1 >/dev/null)" "phase 01 was executed but never approved"
+rm .planning/phases/02-two/02-01-PLAN.md
+is "an unapproved phase with nothing after it is still current" "$("$GSDF" next 2>/dev/null)" "iterate 01"
+# advance rewrites the GSD-era keys it used to leave stale
+printf -- '---\ncurrent_phase: 01\ncurrent_phase_name: One\nprogress:\n  total_phases: 9\n  completed_phases: 0\n  percent: 0\n---\n# State\n' > .planning/STATE.md
+has "state flags a stale frontmatter key" "$("$GSDF" state)" "total_phases=9 (is 3)"
+"$GSDF" phase advance 1 >/dev/null
+ST=$(cat .planning/STATE.md)
+has "advance syncs current_phase" "$ST" "current_phase: 02"
+has "advance syncs current_phase_name" "$ST" "current_phase_name: Two"
+has "advance syncs nested completed_phases" "$ST" "  completed_phases: 1"
+has "advance syncs nested total_phases" "$ST" "  total_phases: 3"
+hasnt "state no longer reports stale keys" "$("$GSDF" state)" "STALE"
+cd "$ROOT"; rm -rf "$T"
+
+# params: named constants, vendored code, runtime ids, an external command, an empty lock
+mkfx; mkdir -p source plugin/JUCE/examples
+cat > source/Params.h <<'CPP'
+// ParameterID { commentedOut, kVersion } is documentation, not a parameter
+inline constexpr int kVersion = 1;
+inline constexpr int kVersionB = 2;
+inline constexpr const char* tonalCentre = "tonalCentre";
+inline constexpr const char* strum = "strum";
+auto a = ParameterID { tonalCentre, kVersion };
+auto b = ParameterID { strum, kVersionB };
+auto c = juce::ParameterID { "mix", 1 };
+CPP
+printf 'ParameterID { "gain", 1 }\n' > plugin/JUCE/examples/Demo.h
+OUT=$("$GSDF" params --write 2>&1)
+has "params resolves named constants" "$OUT" "3 parameter(s)"
+python3 -c "import json;d=json.load(open('.planning/params.lock'));assert [x['id'] for x in d]==['tonalCentre','strum','mix'] and d[1]['version']==2" \
+  && ok "params: ids, order and versions from constants; vendored JUCE skipped" || bad "params lock" "tonalCentre,strum,mix" "$(cat .planning/params.lock)"
+printf 'auto pid = [] (const std::string& id) { return juce::ParameterID { juce::String (id), kVersion }; };\n' > source/Gen.cpp
+OUT=$("$GSDF" params --write 2>&1); RC=$?
+is "params refuses a lock it cannot fill" "$RC" "1"
+has "params names the runtime id" "$OUT" "source/Gen.cpp:1"
+cat > .planning/config.json <<'JSON'
+{"verify":{},"params_cmd":"printf 's1_alive 1\\ns1_tune 1\\n'"}
+JSON
+has "params_cmd is the source when set" "$("$GSDF" params --write 2>&1)" "2 parameter(s) from params_cmd"
+printf '### Phase 1: One\n' > .planning/ROADMAP.md; mkdir -p .planning/phases/01-one
+printf -- '---\nstatus: approved\n---\n' > .planning/phases/01-one/01-ITERATIONS.md
+has "params works on a finished milestone" "$("$GSDF" params 2>&1)" "2 parameter(s)"
+printf '[]\n' > .planning/params.lock
+has "an empty lock is reported, not trusted" "$("$GSDF" params 2>&1)" "params.lock is empty"
+cd "$ROOT"; rm -rf "$T"
+
+# --help after a subcommand is help, never an argument
+B=$(mktemp -d); export GSDF_BUGLOG="$B/bugs.jsonl"
+has "bug --help prints usage" "$("$GSDF" bug --help)" "usage: gsdf bug"
+[ -e "$B/bugs.jsonl" ] && bad "bug --help" "no record" "recorded" || ok "bug --help records nothing"
+cd "$B"; OUT=$("$GSDF" init --help 2>&1)
+[ -d "$B/.planning" ] && bad "init --help" "no project" "scaffolded one" || ok "init --help scaffolds nothing"
+has "help lists per-command usage" "$("$GSDF" help)" "gsdf params [N] [--write]"
+# bugs: stable ids, retire one, count for a hook, count in --version
+"$GSDF" bug "alpha is broken" >/dev/null; "$GSDF" bug "beta is broken" >/dev/null
+is "--count is one line" "$("$GSDF" bugs --count | wc -l | tr -d ' ')" "1"
+has "--version shows open bugs" "$("$GSDF" --version)" "2 open bug report(s)"
+ID=$("$GSDF" bugs | grep "alpha" | sed 's/^#\([0-9a-f]*\).*/\1/')
+has "--fixed retires one" "$("$GSDF" bugs --fixed "$ID" "abc1234")" "1 open"
+hasnt "the retired one is gone" "$("$GSDF" bugs)" "alpha"
+has "the other one stays" "$("$GSDF" bugs)" "beta"
+has "archive records what fixed it" "$(cat "$B/bugs.archive.jsonl")" '"fix": "abc1234"'
+ID=$("$GSDF" bugs | grep "beta" | sed 's/^#\([0-9a-f]*\).*/\1/'); "$GSDF" bugs --fixed "$ID" >/dev/null
+is "--count is silent with nothing open" "$("$GSDF" bugs --count)" ""
+cd "$ROOT"; unset GSDF_BUGLOG; rm -rf "$B"
+
+# context: the two sections that grow with a project stay inside their budget
+mkfx; mkdir -p .planning/phases/01-one .planning/phases/02-two
+python3 -c '
+from pathlib import Path
+w = " ".join(["word"] * 60)
+Path(".planning/STATE.md").write_text("# State\n\n## Decisions\n\n" + "\n".join("- D%d: %s" % (i, w) for i in range(20)) + "\n")
+for i in range(6):
+    Path(".planning/phases/01-one/01-%02d-SUMMARY.md" % i).write_text(
+        "# S\n\n## Delivered\n\n" + "\n".join("- **claim %d.%d** %s" % (i, j, w) for j in range(8)) + "\n")
+'
+OUT=$("$GSDF" context 2)
+W=$(printf '%s' "$OUT" | wc -w | tr -d ' ')
+[ "$W" -lt 1100 ] && ok "context of a long-running project stays bounded ($W words)" || bad "context budget" "< 1100 words" "$W"
+has "the newest decision survives" "$OUT" "- D19:"
+has "dropped decisions are counted, not hidden" "$OUT" "older — STATE.md ## Decisions"
+has "previous phase keeps the bold claim" "$OUT" "claim 0.0"
+cd "$ROOT"; rm -rf "$T"
 
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"

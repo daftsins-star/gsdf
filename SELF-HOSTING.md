@@ -46,10 +46,21 @@ from any project, crashes record themselves, and it all lands in `~/.claude/gsdf
 So the loop from the other side is:
 
 ```bash
-gsdf bugs            # here, in this repo: grouped, deduped, with func:line for crashes
+gsdf bugs                          # here, in this repo: grouped, deduped, each with a #id
 # fix, with a regression test for each
-gsdf bugs --clear    # archives to gsdf-bugs.archive.jsonl, does not delete
+gsdf bugs --fixed <id> "<commit>"  # retire that one to gsdf-bugs.archive.jsonl
 ```
+
+Recording was always cheap; what was missing was anything making the log get read — fifteen
+reports sat for three weeks, two of them already fixed. So have the repo say so when you open it.
+In **this** repo's `.claude/settings.local.json` (local, never shipped — GSDF ships zero hooks):
+
+```json
+{ "hooks": { "SessionStart": [ { "hooks": [ { "type": "command",
+  "command": "\"$CLAUDE_PROJECT_DIR\"/bin/gsdf bugs --count 2>/dev/null || true" } ] } ] } }
+```
+
+It prints one line when reports are open and nothing otherwise.
 
 A crash record carries the frame that raised, so it is usually fixable without a repro. A
 report is one sentence and usually is not — read it as a lead, and reproduce before believing

@@ -29,12 +29,14 @@ GSDF — Get Shit Done Fast
   gsdf verify N                  Run the phase's checks. Exit 2 = nothing configured,
                                  so an unverified phase can't be reported as passing.
   gsdf findings N                What the phase captured as reusable.
-  gsdf params N [--write]        Parameter ABI guard: removal, reorder, id reuse.
+  gsdf params [--write]          Parameter ABI guard: removal, reorder, id reuse.
                                  Advisory until `abi_frozen: true` in config.json.
+                                 Reads only; --write locks.
   gsdf update [--check]          Compare this install against GitHub's newest release
                                  and reinstall when behind. --check writes nothing.
   gsdf bug "<one line>"          Record a GSDF bug you just hit, then carry on.
-  gsdf bugs [--clear]            Grouped list of what has been recorded.
+  gsdf bugs [--fixed <id>]       Open reports with ids; --fixed retires one.
+  gsdf <command> --help          Usage for one command.
   gsdf trace on|off|show         Record a real phase's call sequence and check it
                                  against the process the commands describe.
 

@@ -153,7 +153,7 @@ the original GSD verified is simply behind you. Both are the right answer.
 
 ## The CLI
 
-`gsdf` is ~1130 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~1440 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out. (Lines, not words, is the honest
 unit here: `bin/gsdf` is never loaded into a context window, so what the number claims is how
 much code you have to trust — not what it costs you to run.)
@@ -171,8 +171,11 @@ gsdf verify 2            # runs the phase's verify commands; exits non-zero on f
                          #   Runs plugin_validate only if the phase touched non-UI
                          #   source — a host validator after a CSS change is ceremony
 gsdf findings 2          # what the phase captured as reusable, for approve to collate
-gsdf params 2            # parameter ABI guard: removal, reorder and id reuse all fail.
-                         #   Advisory until abi_frozen: true — before a release you want churn
+gsdf params [--write]    # parameter ABI guard: removal, reorder and id reuse all fail.
+                         #   Advisory until abi_frozen: true — before a release you want churn.
+                         #   Reads only; --write locks. Resolves named-constant ids, skips
+                         #   vendored JUCE, and refuses to lock ids built at runtime —
+                         #   set params_cmd in config.json to a command that prints them
 gsdf lint 2              # exits 1 if a plan is not executable, naming the plan and why.
                          #   Also catches the two failures that are silent otherwise: a
                          #   phase with no plans at all, and a circular depends_on — which
@@ -180,7 +183,8 @@ gsdf lint 2              # exits 1 if a plan is not executable, naming the plan 
                          #   what those plans declared
 gsdf update              # check GitHub, reinstall if it is ahead (--check to look only)
 gsdf bug "<one line>"    # record a GSDF bug you just hit, from any project
-gsdf bugs [--clear]      # grouped list of what has been recorded
+gsdf bugs                # open reports, each with a stable #id
+gsdf bugs --fixed <id> "<commit>"   # retire one, stamped with what fixed it
 gsdf trace on|off|show   # record a real phase's call sequence, then check it
 ```
 
@@ -193,8 +197,9 @@ the worst moment to stop and write a report. So recording costs almost nothing:
 
 ```bash
 gsdf bug "lint passed a phase whose plans had empty requirements"   # ~12 tokens
-gsdf bugs           # grouped, deduped, counted — read this in the GSDF repo later
-gsdf bugs --clear   # after fixing; archives rather than deletes
+gsdf bugs           # grouped, deduped, counted, each with a stable #id
+gsdf bugs --fixed a1b2 "e4e3e0b"   # after fixing one: archives it with what fixed it
+gsdf --version      # also says how many reports are open
 ```
 
 **Crashes record themselves.** A crash is never correct behaviour, so the CLI logs it with no
@@ -202,7 +207,7 @@ agent involved and no tokens spent — the exception, the function and line that
 command that caused it, the version, and the directory:
 
 ```
-[3x] crash  TypeError: 'int' object is not subscriptable
+#5c1e [3x] crash  TypeError: 'int' object is not subscriptable
       cmd_params:526  |  gsdf params 1  |  v1.2.0  |  2026-09-11 23:51
 ```
 
@@ -213,6 +218,12 @@ parallel agents can't tear it, and a corrupt line is skipped rather than fatal.
 The only recurring cost is one sentence in the always-loaded `CLAUDE.md` block telling the agent
 to call `gsdf bug` instead of investigating: **~36 tokens per turn**. Delete that sentence and
 crash capture still works — you just lose the bugs that don't crash, which is most of them.
+
+**Recording is only half of it; someone has to read the log.** `gsdf bugs --count` prints one
+line, or nothing when the log is empty — wire it to SessionStart in the GSDF repo's
+`.claude/settings.local.json` (see SELF-HOSTING.md) and opening the repo says what is waiting.
+GSDF itself still ships zero hooks. Fixed reports
+are retired one at a time with `--fixed`, so the open list never mixes in finished work.
 
 ### Checking it against a real phase
 

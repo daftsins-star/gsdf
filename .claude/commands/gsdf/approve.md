@@ -33,12 +33,13 @@ Copy its output into the report. **Never write a tick for a command you did not 
 unconfigured project and a passing one must not look alike, which is the bug this replaced.
 Exit 2 is the case that bug wore as a disguise — treat it as unproven, never as passing.
 
-**2. Guard the parameter ABI — the other gate.** `gsdf params N`. Advisory until
+**2. Guard the parameter ABI — the other gate.** `gsdf params`. Advisory until
 `abi_frozen: true` is set in `config.json` — before a release, churn is what you want. After
 one, a removed or reordered parameter id silently repoints every automation lane in every
 saved session, and the damage surfaces months later in someone else's project. Non-zero:
 **stop**, say which id, and offer the migrate-on-load fix. A deliberate break re-locks with
-`gsdf params N --write`.
+`gsdf params --write`. It also exits 1 when it cannot read every id statically (ids built at
+runtime) or the lock is empty — say so; the fix is `params_cmd` in config.json, not a re-lock.
 
 Both gates run before step 3 on purpose: everything from here down writes files, and failing a
 gate afterwards leaves the phase's bookkeeping half-rewritten.
