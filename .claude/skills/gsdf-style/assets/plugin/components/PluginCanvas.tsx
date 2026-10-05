@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 export const CANVAS_W = 620;
 export const CANVAS_H = 410;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCanvasScale(): number {
   const compute = () => Math.floor(Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H) * 100) / 100;
   const [s, setS] = useState(compute);
@@ -26,6 +27,7 @@ export function useCanvasScale(): number {
   return s;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function paintGrain(canvas: HTMLCanvasElement): void {
   const dpr = window.devicePixelRatio || 1;
   const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);

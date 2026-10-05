@@ -24,7 +24,8 @@ export function Meter({ getLevel, orientation = 'h', length = 120 }: {
   const ref = useRef<HTMLCanvasElement>(null);
   const over = useRef(false);
   const level = useRef(getLevel);
-  level.current = getLevel;
+  // Keep the ref current after each render (not during it — react-hooks/refs).
+  useEffect(() => { level.current = getLevel; });
 
   useEffect(() => {
     const c = ref.current;

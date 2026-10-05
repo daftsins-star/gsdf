@@ -119,7 +119,7 @@ export function createSignature(canvas: HTMLCanvasElement, opts: SignatureOption
       for (let x = 0; x < W; x++) {
         const v = d[Math.floor((x / W) * d.length)] ?? 0;
         const y = H / 2 - v * (H * 0.42);
-        x ? src.lineTo(x, y) : src.moveTo(x, y);
+        if (x) src.lineTo(x, y); else src.moveTo(x, y);
       }
       src.stroke();
       src.fillStyle = '#777';                          // a dim centre rule -> --ink-dim
@@ -147,7 +147,7 @@ export function createSignature(canvas: HTMLCanvasElement, opts: SignatureOption
           const wob = Math.sin(th * 3 + t * 0.0011 * seed) * 0.08 + Math.sin(th * 5 - t * 0.0007) * 0.05 * (1 + level * 2);
           const r = R * (ring / 4) * (1 + wob);
           const x = cx + Math.cos(th) * r, y = cy + Math.sin(th) * r;
-          a ? src.lineTo(x, y) : src.moveTo(x, y);
+          if (a) src.lineTo(x, y); else src.moveTo(x, y);
         }
         const g = [0, 230, 150, 90, 40][ring];
         src.fillStyle = `rgb(${g},${g},${g})`;

@@ -15,7 +15,8 @@ import './SignaturePiece.css';
 export default function SignaturePiece(props: SignatureOptions & { className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const latest = useRef(props);
-  latest.current = props;
+  // Keep the ref current after each render (not during it — react-hooks/refs).
+  useEffect(() => { latest.current = props; });
 
   useEffect(() => {
     if (!ref.current) return;
