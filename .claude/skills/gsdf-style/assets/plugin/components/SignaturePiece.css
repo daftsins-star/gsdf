@@ -1,0 +1,15 @@
+/* SignaturePiece.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.sig {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border: var(--hair) solid var(--ink-rule);
+  background: var(--color-bg);
+  overflow: hidden;
+}
+.sig-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}

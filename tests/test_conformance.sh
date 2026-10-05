@@ -11,18 +11,18 @@ lt(){ [ "$2" -lt "$3" ] && ok "$1 ($2 < $3)" || bad "$1" "want < $3, got $2"; }
 has(){ case "$2" in *"$3"*) ok "$1";; *) bad "$1" "expected to contain: $3";; esac; }
 hasnt(){ case "$2" in *"$3"*) bad "$1" "must NOT contain: $3";; *) ok "$1";; esac; }
 
-echo "== spawn budget: only new-project, plan, execute, quick may spawn =="
+echo "== spawn budget: only new-project, plan, execute, quick, auto may spawn =="
 SPAWNERS="$(grep -liE 'spawn[^.]{0,40}(gsdf-planner|gsdf-executor)' $C/*.md | xargs -n1 basename | sort | tr '\n' ' ')"
-is "commands that spawn" "$SPAWNERS" "execute.md new-project.md plan.md quick.md "
+is "commands that spawn" "$SPAWNERS" "auto.md execute.md new-project.md plan.md quick.md "
 # a spawn is an instruction to spawn, not a prose mention ("no `gsdf-executor` here")
-for f in iterate.md approve.md discuss.md progress.md help.md; do
+for f in iterate.md approve.md discuss.md progress.md help.md cfg.md; do
   is "no spawn in $f" "$(grep -icE 'spawn[^.]{0,40}(gsdf-planner|gsdf-executor)' $C/$f)" "0"
 done
 
 echo "== model / effort frontmatter =="
 is "no model: on agents" "$(grep -c '^model:' $A/gsdf-*.md | grep -v ':0' | wc -l | tr -d ' ')" "0"
 is "no effort: max anywhere" "$(grep -rc 'effort: max' $C $A 2>/dev/null | grep -v ':0' | wc -l | tr -d ' ')" "0"
-is "effort: low on the cheap commands" "$(grep -l '^effort: low' $C/*.md | xargs -n1 basename | sort | tr '\n' ' ')" "approve.md help.md pause.md progress.md resume.md "
+is "effort: low on the cheap commands" "$(grep -l '^effort: low' $C/*.md | xargs -n1 basename | sort | tr '\n' ' ')" "approve.md cfg.md help.md pause.md progress.md resume.md "
 
 echo "== size budgets =="
 # Words, not lines. `wc -l` measured the wrong thing and was already being gamed:
@@ -40,16 +40,29 @@ for f in $A/gsdf-*.md $C/*.md; do
   WIDE=$(awk 'BEGIN{fence=0} /^```/{fence=!fence; next} fence{next} /^[[:space:]]*\|/{next} length>110{c++} END{print c+0}' "$f")
   is "$(basename $f) prose lines over 110 chars" "$WIDE" "0"
 done
-is "command count" "$(ls $C/*.md | wc -l | tr -d ' ')" "11"
+is "command count" "$(ls $C/*.md | wc -l | tr -d ' ')" "13"
 is "agent count" "$(ls $A/gsdf-*.md | wc -l | tr -d ' ')" "2"
 D=$(python3 -c "
 import glob,re
 print(sum(len(re.search(r'^description: (.+)$',open(f).read(),re.M).group(1)) for f in glob.glob('$C/*.md')))")
-lt "sum of description chars" "$D" 550
+lt "sum of description chars" "$D" 650
 LONGEST=$(python3 -c "
 import glob,re
 print(max(len(re.search(r'^description: (.+)\$',open(f).read(),re.M).group(1)) for f in glob.glob('$C/*.md')))")
 lt "longest description" "$LONGEST" 71
+
+echo "== the style guide ships whole =="
+G=".claude/skills/gsdf-style"
+for f in SKILL.md plugin.md app.md checklist-plugin.md checklist-app.md \
+         assets/plugin/tokens.css assets/plugin/reference-mockup.png assets/plugin/fonts/OFL.txt \
+         assets/plugin/components/SignaturePiece.tsx \
+         assets/app/tokens.css assets/app/glass.css assets/app/reference-mockup.png assets/app/fonts/OFL.txt; do
+  [ -s "$G/$f" ] && ok "gsdf-style has $f" || bad "gsdf-style has $f" "missing or empty"
+done
+has "install.sh copies the style skill" "$(cat install.sh)" "gsdf-templates gsdf-style"
+is "no private paths in the style guide" "$(grep -rl '/Users/' $G | wc -l | tr -d ' ')" "0"
+has "planner points UI work at the style skill" "$(cat $A/gsdf-planner.md)" "gsdf-style"
+has "discuss always asks about a signature piece" "$(cat $C/discuss.md)" "Signature piece"
 
 echo "== orchestrators go through the CLI, never straight to the files =="
 for f in $C/*.md; do

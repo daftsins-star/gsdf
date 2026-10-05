@@ -1,6 +1,6 @@
 ---
 description: Lock phase decisions through a few option-based questions
-argument-hint: "[N]"
+argument-hint: "[N ...]"
 allowed-tools: [Bash, Read, Write, Glob, Grep, AskUserQuestion]
 ---
 
@@ -12,6 +12,10 @@ and the planner decides for itself, which is often fine. Inline; no subagent.
 </objective>
 
 <process>
+
+**0. Which phases.** Several numbers → run this whole process for each, in order. None, and
+more than one phase is still unplanned → one `AskUserQuestion`, multiSelect: *"Which phases do
+you want a say in? The rest I'll decide myself."* None and only one → that one.
 
 **1. Read the brief.** `gsdf context N`. Ignore its `## Context` section — that's the file you're
 about to write. If it already exists, ask whether to add to it, replace it, or skip.
@@ -29,6 +33,17 @@ has. Use the phase's `**Type**:` from the roadmap entry as your starting point:
 **Don't ask about things Claude should decide:** implementation approach, architecture, which
 API, performance strategy. Those are the planner's, and asking makes the user do your job.
 
+**`gsdf cfg plain_language` on:** every question is about what the user sees, hears or does, in
+everyday words — "how loud can it go?", not "gain range in dB". Values still go in CONTEXT.md.
+
+**A `ui` phase always gets these two,** unless PROJECT.md already settles them:
+- *Look* — the `gsdf-style` guide is the default (`gsdf cfg ui_style`); ask only for this
+  project's accent colour, offering 3–4 from the guide's list.
+- *Signature piece* — "Should the UI have a signature piece?" A picture that reacts to the
+  sound, a visualizer, an animated shape — in the guide's grunge treatment (posterized,
+  pixelated, a slight wobble) so it fits the rest. Offer 2–3 ideas that suit *this* project,
+  plus "none".
+
 **3. One `AskUserQuestion` per gray area**, 2–4 concrete options each. Concrete means values:
 "-60..+12 dB, default 0" and "0..100%, default 25", not "wider range" and "narrower range".
 
@@ -39,7 +54,7 @@ have thought about it and to give them something concrete to react to; it is not
 them to three things you happened to think of. If they type something none of your options
 covered, that is the question doing its job.
 
-**Eight questions is the hard ceiling** across the whole session. Fewer is better. If an answer
+**Eight questions per phase is the hard ceiling.** Fewer is better. If an answer
 opens a genuinely important follow-up, ask it and drop one of the others.
 
 **Scope is fixed.** The phase boundary comes from ROADMAP.md. Discussion clarifies *how* this
@@ -68,7 +83,7 @@ Then: `Next: /gsdf:plan N`.
 </process>
 
 <success_criteria>
-- ≤ 8 questions, every one with concrete options.
+- ≤ 8 questions per phase, every one with concrete options.
 - Nothing asked that Claude should have decided.
 - Scope creep captured as deferred, not absorbed into the phase.
 - `NN-CONTEXT.md` records values and reasons, not vibes.

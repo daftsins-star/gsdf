@@ -1,0 +1,124 @@
+/*
+ * GSDF Style Guide by Daftsins — APP glass recipe. Requires tokens.css first.
+ *
+ * Two modes, chosen on <html>:
+ *   data-glass="native"  Electron/macOS with `vibrancy: 'hud'` (or Windows acrylic): the OS blurs
+ *                        the desktop; the page is transparent and panes are almost clear.
+ *   (absent)             Web / Linux / anything with nothing real behind the page: the page paints
+ *                        its own .gs-desk and one .gs-window sheet blurs it. Same look, self-made.
+ *
+ * Surfaces, from clearest to most opaque:
+ *   .gs-pane      docked panes of the ONE window sheet (no radius, hairline separators)
+ *   .gs-card      a group inside a pane (12px, white 4.5% + inner rim)
+ *   .gs-raised    tooltips, wells, floating chrome (56% tint, 30px blur, rim + shadow)
+ *   .gs-float     floating utility window (90% tint, 16px radius)
+ *   .gs-popover   menus, pickers, popovers (90% tint, 48px blur) — legible over busy content
+ *   .gs-stage     the only opaque area: media/canvas surround (black)
+ */
+
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; font-display: block;
+  src: url("fonts/Geist-Variable.woff2") format("woff2-variations"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; font-display: block;
+  src: url("fonts/GeistMono-Variable.woff2") format("woff2-variations"); }
+@font-face { font-family: "Silkscreen"; font-style: normal; font-weight: 400; font-display: block;
+  src: url("fonts/Silkscreen-Regular.woff2") format("woff2"); }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: transparent;
+  color: var(--ink);
+  font: var(--t-base)/1.35 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  -webkit-user-select: none; user-select: none;     /* an app, not a document */
+}
+input, textarea, [contenteditable="true"], [data-selectable] { -webkit-user-select: text; user-select: text; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- the window sheet ---------- */
+/* Native: the root is a 4% wash over the OS material. */
+html[data-glass="native"] .gs-window {
+  position: fixed; inset: 0;
+  background: var(--wash);
+  display: flex; flex-direction: column;
+}
+/* Web fallback: a desk behind, one blurred sheet over it. */
+.gs-desk {
+  position: fixed; inset: 0; z-index: -1; overflow: hidden;
+  background: var(--desk);
+}
+html[data-glass="native"] .gs-desk { display: none; }
+html:not([data-glass="native"]) .gs-window {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  background: var(--glass-web);
+  -webkit-backdrop-filter: var(--blur-web); backdrop-filter: var(--blur-web);
+  box-shadow: inset 0 1px 0 var(--rim-soft);
+}
+/* Web, windowed (a demo / marketing frame, not a full-page app): inset with a radius and a shadow. */
+html:not([data-glass="native"]) .gs-window.is-framed {
+  inset: 14px 20px; border-radius: var(--r-5);
+  border: 1px solid var(--hair-2);
+  box-shadow: var(--shadow-window), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+
+/* ---------- surfaces ---------- */
+.gs-pane {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur-panel); backdrop-filter: var(--blur-panel);
+  min-width: 0; min-height: 0; overflow: hidden;
+}
+.gs-split-r { border-right: 1px solid var(--hair); }               /* pane with a neighbour to its right */
+.gs-pane.is-deep { background: var(--glass-deep); }               /* one bottom strip */
+.gs-row-split { border-top: 1px solid var(--hair); }              /* stacked panes */
+
+.gs-card {
+  border: 1px solid var(--hair);
+  border-radius: var(--r-4);
+  background: var(--fill-1);
+  box-shadow: inset 0 1px 0 var(--rim-soft);
+  transition: border-color var(--motion-press) var(--ease-out), background var(--motion-press) var(--ease-out);
+}
+.gs-card:hover { border-color: var(--hair-2); }
+.gs-card.is-selected { border-color: var(--accent-line); }
+
+.gs-raised {
+  background: var(--glass-2);
+  -webkit-backdrop-filter: var(--blur-raised); backdrop-filter: var(--blur-raised);
+  border: 1px solid var(--hair-2);
+  box-shadow: inset 0 1px 0 var(--rim), inset 0 -1px 0 var(--rim-low), var(--shadow-float);
+}
+
+.gs-float {
+  background: var(--glass-float);
+  -webkit-backdrop-filter: var(--blur-raised); backdrop-filter: var(--blur-raised);
+  border: 1px solid var(--hair-2);
+  border-radius: var(--r-5);
+  box-shadow: inset 0 1px 0 var(--rim), inset 0 -1px 0 var(--rim-low), var(--shadow-float);
+}
+
+.gs-popover {
+  background: var(--glass-popover);
+  -webkit-backdrop-filter: var(--blur-popover); backdrop-filter: var(--blur-popover);
+  border: 1px solid var(--hair-2);
+  box-shadow: inset 0 1px 0 var(--rim), inset 0 -1px 0 var(--rim-low), var(--shadow-float);
+}
+
+.gs-stage { background: var(--stage); }
+
+/* Empty state / drop zone texture. */
+.gs-dots { background: var(--dots); }
+
+/* ---------- scrollbars: thin, dark, no track ---------- */
+::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--hair-2) padding-box; border: 1px solid transparent; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--rim); }
+::-webkit-scrollbar-button { display: none; }
+
+/* ---------- drag regions (Electron hidden-inset title bar) ---------- */
+.gs-drag { -webkit-app-region: drag; }
+.gs-drag button, .gs-drag input, .gs-drag [role="tab"], .gs-drag [role="button"], .gs-nodrag { -webkit-app-region: no-drag; }

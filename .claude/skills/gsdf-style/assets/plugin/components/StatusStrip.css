@@ -1,0 +1,14 @@
+/* StatusStrip.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border-top: var(--hair) solid var(--ink-rule);
+  white-space: nowrap;
+  min-width: 0;
+}
+.status .lbl { display: inline-flex; align-items: center; gap: var(--space-1); }
+.status .val { width: 48px; }
+.st-gap { flex: 1; min-width: 0; }
+.st-msg { font-size: var(--text-nano); color: var(--ink-dim); letter-spacing: var(--track-caps); }

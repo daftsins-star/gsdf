@@ -1,0 +1,68 @@
+/* Masthead.css — GSDF Style Guide by Daftsins. Roles only, no hex.
+   Accent appears here as a GROUND (the chip, a pressed button), never as text. */
+.mh {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) 0 0;
+  border-bottom: var(--hair) solid var(--ink-rule);
+  white-space: nowrap;
+  min-width: 0;
+}
+.mh-logo {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  margin-right: var(--space-1);
+  background: var(--ink-live);
+  color: var(--ink-on-accent);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: var(--track-body);
+}
+.mh-preset {
+  height: var(--ctl-sm);
+  max-width: 140px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-1);
+  border: var(--hair) solid var(--ink-rule);
+  color: var(--ink-text);
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-caps);
+}
+.mh-preset:hover { border-color: var(--ink-text); }
+.mh-preset[aria-pressed="true"] { background: var(--ink-live); border-color: var(--ink-live); color: var(--ink-on-accent); }
+.mh-preset-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.mh-spacer { flex: 1; }
+.mh-version { font-size: var(--text-nano); letter-spacing: var(--track-caps); color: var(--ink-dim); text-transform: none; }
+
+.mh-menu-wrap { position: relative; display: flex; align-items: center; }
+.mh-menu { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; color: var(--ink-text); }
+.mh-menu-list {
+  position: absolute;
+  top: 18px;
+  right: 0;
+  width: 150px;
+  background: var(--color-bg);
+  border: var(--hair) solid var(--ink-text);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+.mh-menu-item {
+  height: var(--ctl-lg);
+  padding: 0 var(--space-3);
+  text-align: left;
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-caps);
+  color: var(--ink-text);
+  background: var(--color-bg);
+}
+.mh-menu-item + .mh-menu-item { border-top: var(--hair) solid var(--ink-hair); }
+.mh-menu-item:hover { background: var(--ink-hair); }
+.mh-menu-item--destructive { border-top-color: var(--ink-rule) !important; }

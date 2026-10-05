@@ -1,0 +1,133 @@
+/*
+ * GSDF Style Guide by Daftsins — APP tokens (the transparent glass look).
+ * Copy this file verbatim. Components reference ONLY these custom properties:
+ * no raw hex / rgba in component CSS. Dark only — the glass is always dark.
+ * Change --accent (and its three companions) to re-brand; change nothing else.
+ */
+:root {
+  color-scheme: dark;
+
+  /* ---- ink (text) ---- */
+  --ink: #F2F4F8;         /* primary text, active icons */
+  --ink-2: #C5CAD6;       /* secondary text, resting icons, readouts */
+  --muted: #8C93A3;       /* labels, hints, placeholders */
+  --faint: #5E6474;       /* section labels, disabled, tertiary meta */
+
+  /* ---- accent (one hue; re-brand here) ---- */
+  --accent: #29ADFF;
+  --accent-hi: #6CC6FF;                  /* accent hover */
+  --accent-ink: #04121D;                 /* text ON an accent fill */
+  --accent-soft: rgba(41, 173, 255, .15); /* "on" wash: pressed icon buttons, icon tiles */
+  --accent-line: rgba(41, 173, 255, .45); /* selected-tab border, sash */
+  --accent-focus: rgba(41, 173, 255, .6); /* focused field border */
+  --accent-drop: rgba(41, 173, 255, .07); /* drop-target wash */
+
+  /* ---- status ---- */
+  --rec: #FF004D;   /* destructive / record */
+  --ok: #00E436;    /* success / meters */
+  --warn: #FFA300;
+
+  /* ---- glass surfaces (see glass.css for the recipes) ---- */
+  --wash: rgba(13, 15, 22, .04);        /* page root over OS vibrancy */
+  --glass: rgba(16, 18, 26, .035);      /* docked panes: nearly clear */
+  --glass-deep: rgba(10, 11, 16, .07);  /* one bottom strip a shade darker (timeline / log / console) */
+  --glass-2: rgba(28, 31, 42, .56);     /* raised: tooltips, wells, floating chrome */
+  --glass-3: rgba(36, 39, 52, .74);     /* raised and busy */
+  --glass-float: rgba(26, 28, 38, .9);  /* floating utility window */
+  --glass-popover: rgba(14, 16, 22, .9);/* menus, pickers, popovers: near-opaque */
+  --glass-web: rgba(16, 18, 26, .56);   /* web fallback window sheet (no OS vibrancy) */
+  --scrim: rgba(5, 6, 10, .35);         /* behind a dialog */
+  --notice: rgba(20, 20, 24, .86);      /* toast */
+  --drag: rgba(50, 54, 70, .9);         /* a card while dragged */
+
+  --blur-panel: blur(28px) saturate(170%);
+  --blur-raised: blur(30px) saturate(180%);
+  --blur-popover: blur(48px) saturate(180%);
+  --blur-web: blur(46px) saturate(185%);
+
+  /* ---- lines ---- */
+  --hair: rgba(255, 255, 255, .10);   /* every separator and resting border */
+  --hair-2: rgba(255, 255, 255, .16); /* hover border, raised-surface border */
+  --rim: rgba(255, 255, 255, .28);    /* 1px inner top highlight on glass */
+  --rim-soft: rgba(255, 255, 255, .07);  /* inner top highlight on cards */
+  --rim-low: rgba(255, 255, 255, .04);   /* inner bottom highlight on raised glass */
+  --rim-thumb: rgba(255, 255, 255, .14); /* inner top highlight on a selected segment */
+  --rim-accent: rgba(255, 255, 255, .35);/* inner top highlight on the accent button */
+
+  /* ---- white fills over glass (the only way to "fill" something) ---- */
+  --fill-0: rgba(255, 255, 255, .04);  /* field / mini-button rest */
+  --fill-1: rgba(255, 255, 255, .045); /* card, tile rest */
+  --fill-2: rgba(255, 255, 255, .06);  /* pill rest, quiet hover */
+  --fill-3: rgba(255, 255, 255, .08);  /* icon-button hover, tile hover */
+  --fill-4: rgba(255, 255, 255, .12);  /* pill hover, selected segment, switch off, slider track */
+  --well: rgba(0, 0, 0, .25);          /* sunken: search, number boxes, segment track */
+  --well-2: rgba(0, 0, 0, .35);        /* sunken + focused */
+  --knob: #FFFFFF;
+  --on-light: #111114;                 /* glyph on the white play/primary-white button */
+
+  /* ---- shadows ---- */
+  --shadow-float: 0 18px 50px rgba(0, 0, 0, .45);
+  --shadow-window: 0 40px 120px rgba(0, 0, 0, .55);
+  --shadow-knob: 0 1px 4px rgba(0, 0, 0, .5);
+  --shadow-chip: 0 2px 8px rgba(0, 0, 0, .4);
+
+  /* ---- solid stage (media/canvas surround only — the one opaque area) ---- */
+  --stage: #000000;
+  --stage-bar: #1A1B1F;
+
+  /* ---- type ---- */
+  --sans: "Geist", -apple-system, system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  --pix: "Silkscreen", "Geist Mono", monospace; /* section labels only */
+  --t-micro: 9px;     /* pix section labels */
+  --t-xs: 10.5px;     /* hints, sub-lines, kbd */
+  --t-sm: 11px;       /* secondary, tooltips, sub-tabs, mono readouts */
+  --t-label: 11.5px;  /* control-row labels */
+  --t-base: 12px;     /* body, buttons, menus, card titles */
+  --t-list: 12.5px;   /* list rows, search, settings tabs */
+  --t-title: 13px;    /* window/panel title, selected-object name */
+  --t-dialog: 17px;   /* dialog title — the largest text in the app */
+
+  /* ---- radii (only these) ---- */
+  --r-1: 6px;   /* icon tiles, number boxes, small icon buttons */
+  --r-2: 7px;   /* icon buttons, menu items, mini buttons, tooltips */
+  --r-3: 9px;   /* pills, segmented track, search, tiles, settings tabs */
+  --r-4: 12px;  /* cards, menus, toasts, list wells */
+  --r-5: 16px;  /* floating windows, web window sheet */
+  --r-6: 18px;  /* dialogs */
+  --r-pill: 999px;
+
+  /* ---- spacing / sizes ---- */
+  --s-1: 2px; --s-2: 4px; --s-3: 6px; --s-4: 8px; --s-5: 10px; --s-6: 12px; --s-7: 14px; --s-8: 22px;
+  --h-title: 46px;    /* title bar */
+  --h-head: 58px;     /* panel header with an object */
+  --h-bar: 40px;      /* toolbars, transport, status */
+  --h-ctl: 28px;      /* buttons, icon buttons */
+  --h-field: 30px;    /* search / text field */
+  --h-row: 25px;      /* list row */
+  --h-mini: 24px;     /* mini buttons */
+  --h-seg: 22px;      /* segmented items, number boxes, sub-tabs */
+
+  /* ---- motion: three durations, one curve ---- */
+  --motion-press: 100ms;
+  --motion-std: 170ms;
+  --motion-arrive: 240ms;
+  --motion-fade: 170ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+
+  /* ---- web-fallback desk: what the glass blurs when no OS material exists ---- */
+  --desk:
+    radial-gradient(60% 70% at 12% 18%, #ff8a5b 0, transparent 60%),
+    radial-gradient(55% 60% at 88% 12%, #6a5cff 0, transparent 62%),
+    radial-gradient(70% 70% at 70% 95%, #00b3a4 0, transparent 60%),
+    radial-gradient(50% 50% at 25% 90%, #ffcf5a 0, transparent 60%),
+    linear-gradient(135deg, #2a1b4d, #0e3b4a);
+
+  /* ---- texture ---- */
+  --dots: radial-gradient(rgba(255, 255, 255, .075) 1px, transparent 1.3px) 0 0 / 6px 6px; /* empty states, drop zones */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion-press: 0ms; --motion-std: 0ms; --motion-arrive: 0ms; --motion-fade: 170ms; }
+  *, *::before, *::after { transition-property: opacity !important; transition-duration: var(--motion-fade) !important; }
+}

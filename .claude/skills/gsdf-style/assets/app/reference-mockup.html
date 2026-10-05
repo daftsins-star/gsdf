@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stillroom — GSDF glass reference</title>
+<!-- GSDF Style Guide by Daftsins — APP reference mockup. A fictional photo-grading app drawn ONLY
+     with tokens.css + glass.css + components/components.css. Web-fallback mode (no data-glass), framed
+     so the desk shows around the window. Icons: Phosphor (MIT), inlined below. -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="glass.css">
+<link rel="stylesheet" href="components/components.css">
+<style>
+  /* Mockup-only layout glue. Still tokens only. */
+  .grid { display: grid; flex: 1; min-height: 0; grid-template-columns: 272px minmax(0,1fr) 316px;
+          grid-template-rows: minmax(0,1fr) 232px; grid-template-areas: "left center right" "bottom bottom right"; }
+  .a-left { grid-area: left; display: flex; flex-direction: column; }
+  .a-center { grid-area: center; display: flex; flex-direction: column; }
+  .a-right { grid-area: right; display: flex; flex-direction: column; }
+  .a-bottom { grid-area: bottom; display: flex; flex-direction: column; }
+  .pad { padding: 0 var(--s-5); }
+  .scroll { flex: 1; min-height: 0; overflow: auto; padding: 0 var(--s-5) var(--s-5); }
+  .fake-lights { display: flex; gap: 8px; width: 56px; }
+  .fake-lights i { width: 12px; height: 12px; border-radius: 50%; background: var(--fill-4); box-shadow: inset 0 0 0 1px var(--hair); }
+  .fake-lights i:nth-child(1) { background: #ff5f57; } .fake-lights i:nth-child(2) { background: #febc2e; } .fake-lights i:nth-child(3) { background: #28c840; } /* OS chrome stand-in, not a component */
+  .brand { display: flex; align-items: center; gap: var(--s-4); height: 30px; padding: 0 var(--s-5) 0 var(--s-2); border-right: 1px solid var(--hair); }
+  .mark { width: 22px; height: 22px; border-radius: var(--r-1); background: linear-gradient(135deg, var(--accent-hi), var(--accent) 55%, var(--accent-ink)); box-shadow: var(--shadow-chip), inset 0 0 0 1px var(--fill-4); display: grid; place-items: center; color: var(--ink); }
+  .word { font: var(--t-title) var(--pix); letter-spacing: .02em; color: var(--ink); }
+  .vhead { display: flex; align-items: center; gap: var(--s-4); height: 34px; padding: 0 var(--s-5); font-size: var(--t-base); color: var(--ink); }
+  .vhead .m { color: var(--muted); }
+  .vhead .r { margin-left: auto; font: var(--t-sm) var(--mono); color: var(--muted); display: flex; align-items: center; gap: var(--s-4); }
+  .meter { display: flex; gap: 1px; } .meter i { width: 3px; height: 8px; background: var(--ok); } .meter i.o { background: var(--fill-4); }
+  .stage { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
+  .photo { width: 78%; aspect-ratio: 3 / 2; position: relative; overflow: hidden; outline: 1px solid var(--accent); }
+  .photo .sky { position: absolute; inset: 0; background: linear-gradient(180deg, #1d2b53 0%, #7e2553 38%, #ff7a59 62%, #ffcf5a 74%); }
+  .photo .sun { position: absolute; left: 58%; top: 50%; width: 15%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(#fff6d8, #ffd27a 60%, transparent 62%); filter: blur(1px); }
+  .photo .hill1 { position: absolute; left: -10%; right: -10%; bottom: -30%; height: 62%; border-radius: 50% 50% 0 0; background: #24133a; }
+  .photo .hill2 { position: absolute; left: 30%; right: -30%; bottom: -36%; height: 60%; border-radius: 50% 50% 0 0; background: #120a1f; } /* photo content, not UI */
+  .nav { display: flex; align-items: center; gap: var(--s-1); justify-content: center; }
+  .v-end { display: flex; justify-content: flex-end; gap: var(--s-3); }
+  .strip { flex: 1; display: flex; gap: var(--s-4); padding: var(--s-5); overflow: hidden; align-items: flex-start; }
+  .thumb { width: 132px; flex: none; }
+  .thumb .img { height: 88px; border-radius: var(--r-1); border: 1px solid var(--hair); position: relative; overflow: hidden; }
+  .thumb.sel .img { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .thumb .cap { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-2); font: var(--t-xs) var(--mono); color: var(--muted); }
+  .thumb .cap .gs-i { width: 11px; height: 11px; }
+  .thumb .cap .star { color: var(--warn); }
+  .thumb .cap .flag { color: var(--rec); margin-left: auto; }
+  .t1 { background: linear-gradient(180deg,#1d2b53,#ff7a59 70%,#24133a 71%); } .t2 { background: linear-gradient(160deg,#0e3b4a,#00b3a4 60%,#08303a 61%); }
+  .t3 { background: linear-gradient(200deg,#2a1b4d,#6a5cff 55%,#140d26 56%); } .t4 { background: linear-gradient(180deg,#ffcf5a,#ff8a5b 50%,#3a1d12 51%); }
+  .t5 { background: linear-gradient(170deg,#5f574f,#c2c3c7 60%,#1a1b1f 61%); } .t6 { background: linear-gradient(190deg,#008751,#83769c 65%,#10201a 66%); } /* photo content */
+  .t7 { background: linear-gradient(180deg,#7e2553,#ff77a8 58%,#26101c 59%); }
+  .menu-at { position: absolute; left: 902px; top: 508px; width: 218px; z-index: 5; }
+  .tip-at { position: absolute; left: 282px; top: 54px; z-index: 5; }
+  .stack { display: flex; flex-direction: column; gap: var(--s-4); }
+  .tabs-pad { padding: var(--s-5) var(--s-5) var(--s-4); }
+  .chip-row { display: flex; gap: var(--s-3); align-items: center; }
+  .lbl { font-size: var(--t-label); color: var(--muted); width: 84px; flex: none; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none"><!-- Phosphor Icons, MIT --><symbol id="ph-arrow-counter-clockwise" viewBox="0 0 256 256"><path d="M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L44.59,96H72a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V56a8,8,0,0,1,16,0V85.8L60.25,60A96,96,0,0,1,224,128Z"/></symbol><symbol id="ph-arrows-horizontal" viewBox="0 0 256 256"><path d="M237.66,133.66l-32,32a8,8,0,0,1-11.32-11.32L212.69,136H43.31l18.35,18.34a8,8,0,0,1-11.32,11.32l-32-32a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,11.32L43.31,120H212.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,237.66,133.66Z"/></symbol><symbol id="ph-arrows-out-cardinal" viewBox="0 0 256 256"><path d="M90.34,61.66a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,0l32,32a8,8,0,0,1-11.32,11.32L136,43.31V96a8,8,0,0,1-16,0V43.31L101.66,61.66A8,8,0,0,1,90.34,61.66Zm64,132.68L136,212.69V160a8,8,0,0,0-16,0v52.69l-18.34-18.35a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm83.32-72-32-32a8,8,0,0,0-11.32,11.32L212.69,120H160a8,8,0,0,0,0,16h52.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,237.66,122.34ZM43.31,136H96a8,8,0,0,0,0-16H43.31l18.35-18.34A8,8,0,0,0,50.34,90.34l-32,32a8,8,0,0,0,0,11.32l32,32a8,8,0,0,0,11.32-11.32Z"/></symbol><symbol id="ph-bold-export" viewBox="0 0 256 256"><path d="M220,112v96a20,20,0,0,1-20,20H56a20,20,0,0,1-20-20V112A20,20,0,0,1,56,92H76a12,12,0,0,1,0,24H60v88H196V116H180a12,12,0,0,1,0-24h20A20,20,0,0,1,220,112ZM96.49,72.49,116,53v83a12,12,0,0,0,24,0V53l19.51,19.52a12,12,0,1,0,17-17l-40-40a12,12,0,0,0-17,0l-40,40a12,12,0,1,0,17,17Z"/></symbol><symbol id="ph-bookmark-simple" viewBox="0 0 256 256"><path d="M184,32H72A16,16,0,0,0,56,48V224a8,8,0,0,0,12.24,6.78L128,193.43l59.77,37.35A8,8,0,0,0,200,224V48A16,16,0,0,0,184,32Zm0,177.57-51.77-32.35a8,8,0,0,0-8.48,0L72,209.57V48H184Z"/></symbol><symbol id="ph-caret-down" viewBox="0 0 256 256"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></symbol><symbol id="ph-caret-left" viewBox="0 0 256 256"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"/></symbol><symbol id="ph-caret-right" viewBox="0 0 256 256"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></symbol><symbol id="ph-check" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></symbol><symbol id="ph-circle" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Z"/></symbol><symbol id="ph-clock-counter-clockwise" viewBox="0 0 256 256"><path d="M136,80v43.47l36.12,21.67a8,8,0,0,1-8.24,13.72l-40-24A8,8,0,0,1,120,128V80a8,8,0,0,1,16,0Zm-8-48A95.44,95.44,0,0,0,60.08,60.15C52.81,67.51,46.35,74.59,40,82V64a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8H72a8,8,0,0,0,0-16H49c7.15-8.42,14.27-16.35,22.39-24.57a80,80,0,1,1,1.66,114.75,8,8,0,1,0-11,11.64A96,96,0,1,0,128,32Z"/></symbol><symbol id="ph-crosshair-simple" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm8,191.63V184a8,8,0,0,0-16,0v31.63A88.13,88.13,0,0,1,40.37,136H72a8,8,0,0,0,0-16H40.37A88.13,88.13,0,0,1,120,40.37V72a8,8,0,0,0,16,0V40.37A88.13,88.13,0,0,1,215.63,120H184a8,8,0,0,0,0,16h31.63A88.13,88.13,0,0,1,136,215.63Z"/></symbol><symbol id="ph-dice-five" viewBox="0 0 256 256"><path d="M192,32H64A32,32,0,0,0,32,64V192a32,32,0,0,0,32,32H192a32,32,0,0,0,32-32V64A32,32,0,0,0,192,32Zm16,160a16,16,0,0,1-16,16H64a16,16,0,0,1-16-16V64A16,16,0,0,1,64,48H192a16,16,0,0,1,16,16ZM104,92A12,12,0,1,1,92,80,12,12,0,0,1,104,92Zm72,0a12,12,0,1,1-12-12A12,12,0,0,1,176,92Zm-72,72a12,12,0,1,1-12-12A12,12,0,0,1,104,164Zm36-36a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm36,36a12,12,0,1,1-12-12A12,12,0,0,1,176,164Z"/></symbol><symbol id="ph-dots-six-vertical" viewBox="0 0 256 256"><path d="M104,60A12,12,0,1,1,92,48,12,12,0,0,1,104,60Zm60,12a12,12,0,1,0-12-12A12,12,0,0,0,164,72ZM92,116a12,12,0,1,0,12,12A12,12,0,0,0,92,116Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,116ZM92,184a12,12,0,1,0,12,12A12,12,0,0,0,92,184Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,184Z"/></symbol><symbol id="ph-drop-half" viewBox="0 0 256 256"><path d="M174,47.75a254.19,254.19,0,0,0-41.45-38.3,8,8,0,0,0-9.18,0A254.19,254.19,0,0,0,82,47.75C54.51,79.32,40,112.6,40,144a88,88,0,0,0,176,0C216,112.6,201.49,79.32,174,47.75ZM200,144a70.57,70.57,0,0,1-.46,8H136V136h63.64Q200,140,200,144ZM183.39,88H136V72h36.89A175.85,175.85,0,0,1,183.39,88ZM136,200h37.19A71.67,71.67,0,0,1,136,215.54Zm0-16V168h59.87a72,72,0,0,1-8,16Zm0-64V104h55.39a116.84,116.84,0,0,1,5.45,16Zm23.89-64H136V32.6A257.22,257.22,0,0,1,159.89,56ZM56,144c0-50,42.26-92.71,64-111.4V215.54A72.08,72.08,0,0,1,56,144Z"/></symbol><symbol id="ph-eye-slash" viewBox="0 0 256 256"><path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208a127.11,127.11,0,0,0,52.07-10.83l22,24.21a8,8,0,1,0,11.84-10.76Zm47.33,75.84,41.67,45.85a32,32,0,0,1-41.67-45.85ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.16,133.16,0,0,1,25,128c4.69-8.79,19.66-33.39,47.35-49.38l18,19.75a48,48,0,0,0,63.66,70l14.73,16.2A112,112,0,0,1,128,192Zm6-95.43a8,8,0,0,1,3-15.72,48.16,48.16,0,0,1,38.77,42.64,8,8,0,0,1-7.22,8.71,6.39,6.39,0,0,1-.75,0,8,8,0,0,1-8-7.26A32.09,32.09,0,0,0,134,96.57Zm113.28,34.69c-.42.94-10.55,23.37-33.36,43.8a8,8,0,1,1-10.67-11.92A132.77,132.77,0,0,0,231.05,128a133.15,133.15,0,0,0-23.12-30.77C185.67,75.19,158.78,64,128,64a118.37,118.37,0,0,0-19.36,1.57A8,8,0,1,1,106,49.79,134,134,0,0,1,128,48c34.88,0,66.57,13.26,91.66,38.35,18.83,18.83,27.3,37.62,27.65,38.41A8,8,0,0,1,247.31,131.26Z"/></symbol><symbol id="ph-eyedropper" viewBox="0 0 256 256"><path d="M224,67.3a35.79,35.79,0,0,0-11.26-25.66c-14-13.28-36.72-12.78-50.62,1.13L142.8,62.2a24,24,0,0,0-33.14.77l-9,9a16,16,0,0,0,0,22.64l2,2.06-51,51a39.75,39.75,0,0,0-10.53,38l-8,18.41A13.68,13.68,0,0,0,36,219.3a15.92,15.92,0,0,0,17.71,3.35L71.23,215a39.89,39.89,0,0,0,37.06-10.75l51-51,2.06,2.06a16,16,0,0,0,22.62,0l9-9a24,24,0,0,0,.74-33.18l19.75-19.87A35.75,35.75,0,0,0,224,67.3ZM97,193a24,24,0,0,1-24,6,8,8,0,0,0-5.55.31l-18.1,7.91L57,189.41a8,8,0,0,0,.25-5.75A23.88,23.88,0,0,1,63,159l51-51,33.94,34ZM202.13,82l-25.37,25.52a8,8,0,0,0,0,11.3l4.89,4.89a8,8,0,0,1,0,11.32l-9,9L112,83.26l9-9a8,8,0,0,1,11.31,0l4.89,4.89a8,8,0,0,0,11.33,0l24.94-25.09c7.81-7.82,20.5-8.18,28.29-.81a20,20,0,0,1,.39,28.7Z"/></symbol><symbol id="ph-faders" viewBox="0 0 256 256"><path d="M136,120v96a8,8,0,0,1-16,0V120a8,8,0,0,1,16,0Zm64,72a8,8,0,0,0-8,8v16a8,8,0,0,0,16,0V200A8,8,0,0,0,200,192Zm24-32H208V40a8,8,0,0,0-16,0V160H176a8,8,0,0,0,0,16h48a8,8,0,0,0,0-16ZM56,160a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V168A8,8,0,0,0,56,160Zm24-32H64V40a8,8,0,0,0-16,0v88H32a8,8,0,0,0,0,16H80a8,8,0,0,0,0-16Zm72-48H136V40a8,8,0,0,0-16,0V80H104a8,8,0,0,0,0,16h48a8,8,0,0,0,0-16Z"/></symbol><symbol id="ph-fill-cursor" viewBox="0 0 256 256"><path d="M220.49,207.8,207.8,220.49a12,12,0,0,1-17,0l-56.57-56.57L115,214.08l-.13.33A15.84,15.84,0,0,1,100.26,224l-.78,0a15.82,15.82,0,0,1-14.41-11L32.8,52.92A15.95,15.95,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.33.13-50.16,19.27,56.57,56.56A12,12,0,0,1,220.49,207.8Z"/></symbol><symbol id="ph-fill-drop-half" viewBox="0 0 256 256"><path d="M174,47.75a254.19,254.19,0,0,0-41.45-38.3,8,8,0,0,0-9.18,0A254.19,254.19,0,0,0,82,47.75C54.51,79.32,40,112.6,40,144a88,88,0,0,0,176,0C216,112.6,201.49,79.32,174,47.75ZM56,144c0-57.23,55.47-105,72-118V216A72.08,72.08,0,0,1,56,144Z"/></symbol><symbol id="ph-fill-flag" viewBox="0 0 256 256"><path d="M232,56V176a8,8,0,0,1-2.76,6c-15.28,13.23-29.89,18-43.82,18-18.91,0-36.57-8.74-53-16.85C105.87,170,82.79,158.61,56,179.77V224a8,8,0,0,1-16,0V56a8,8,0,0,1,2.77-6h0c36-31.18,68.31-15.21,96.79-1.12C167,62.46,190.79,74.2,218.76,50A8,8,0,0,1,232,56Z"/></symbol><symbol id="ph-fill-image-square" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM48,48H208v77.38l-24.69-24.7a16,16,0,0,0-22.62,0L53.37,208H48ZM80,96a16,16,0,1,1,16,16A16,16,0,0,1,80,96Z"/></symbol><symbol id="ph-fill-intersect" viewBox="0 0 256 256"><path d="M174.63,81.37a80,80,0,1,0-93.26,93.26,80,80,0,1,0,93.26-93.26ZM32,96a64,64,0,0,1,126-16A80.08,80.08,0,0,0,80.05,158,64.11,64.11,0,0,1,32,96ZM160,224A64.11,64.11,0,0,1,98,176,80.08,80.08,0,0,0,176,98,64,64,0,0,1,160,224Z"/></symbol><symbol id="ph-fill-magnet" viewBox="0 0 256 256"><path d="M207,50.25A87.46,87.46,0,0,0,144.6,24h-.33A87.48,87.48,0,0,0,82,49.81L20.61,112a16,16,0,0,0,.06,22.56l28.66,28.66a15.92,15.92,0,0,0,11.32,4.69h.09a16,16,0,0,0,11.36-4.82L133,100.69a16.08,16.08,0,0,1,22.41-.21,15.6,15.6,0,0,1,4.73,11.19,16.89,16.89,0,0,1-4.85,12L93,183.88a16,16,0,0,0-.17,22.79l28.66,28.66a16.06,16.06,0,0,0,22.52.12L205.81,175C240.26,140.5,240.79,84.56,207,50.25ZM60.65,151.89,32,123.24,61.42,93.43,89.9,121.91ZM132.79,224l-28.68-28.65,30.13-29.13,28.49,28.48Z"/></symbol><symbol id="ph-fill-play" viewBox="0 0 256 256"><path d="M240,128a15.74,15.74,0,0,1-7.6,13.51L88.32,229.65a16,16,0,0,1-16.2.3A15.86,15.86,0,0,1,64,216.13V39.87a15.86,15.86,0,0,1,8.12-13.82,16,16,0,0,1,16.2.3L232.4,114.49A15.74,15.74,0,0,1,240,128Z"/></symbol><symbol id="ph-fill-star" viewBox="0 0 256 256"><path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/></symbol><symbol id="ph-fill-sun" viewBox="0 0 256 256"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm8,24a64,64,0,1,0,64,64A64.07,64.07,0,0,0,128,64ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></symbol><symbol id="ph-film-strip" viewBox="0 0 256 256"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,88h80v80H40Zm96-16V56h32V72Zm-16,0H88V56h32Zm0,112v16H88V184Zm16,0h32v16H136Zm0-16V88h80v80Zm80-96H184V56h32ZM72,56V72H40V56ZM40,184H72v16H40Zm176,16H184V184h32v16Z"/></symbol><symbol id="ph-flag" viewBox="0 0 256 256"><path d="M42.76,50A8,8,0,0,0,40,56V224a8,8,0,0,0,16,0V179.77c26.79-21.16,49.87-9.75,76.45,3.41,16.4,8.11,34.06,16.85,53,16.85,13.93,0,28.54-4.75,43.82-18a8,8,0,0,0,2.76-6V56A8,8,0,0,0,218.76,50c-28,24.23-51.72,12.49-79.21-1.12C111.07,34.76,78.78,18.79,42.76,50ZM216,172.25c-26.79,21.16-49.87,9.74-76.45-3.41-25-12.35-52.81-26.13-83.55-8.4V59.79c26.79-21.16,49.87-9.75,76.45,3.4,25,12.35,52.82,26.13,83.55,8.4Z"/></symbol><symbol id="ph-frame-corners" viewBox="0 0 256 256"><path d="M200,80v32a8,8,0,0,1-16,0V88H160a8,8,0,0,1,0-16h32A8,8,0,0,1,200,80ZM96,168H72V144a8,8,0,0,0-16,0v32a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16ZM232,56V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Z"/></symbol><symbol id="ph-gear-six" viewBox="0 0 256 256"><path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm109.94-52.79a8,8,0,0,0-3.89-5.4l-29.83-17-.12-33.62a8,8,0,0,0-2.83-6.08,111.91,111.91,0,0,0-36.72-20.67,8,8,0,0,0-6.46.59L128,41.85,97.88,25a8,8,0,0,0-6.47-.6A112.1,112.1,0,0,0,54.73,45.15a8,8,0,0,0-2.83,6.07l-.15,33.65-29.83,17a8,8,0,0,0-3.89,5.4,106.47,106.47,0,0,0,0,41.56,8,8,0,0,0,3.89,5.4l29.83,17,.12,33.62a8,8,0,0,0,2.83,6.08,111.91,111.91,0,0,0,36.72,20.67,8,8,0,0,0,6.46-.59L128,214.15,158.12,231a7.91,7.91,0,0,0,3.9,1,8.09,8.09,0,0,0,2.57-.42,112.1,112.1,0,0,0,36.68-20.73,8,8,0,0,0,2.83-6.07l.15-33.65,29.83-17a8,8,0,0,0,3.89-5.4A106.47,106.47,0,0,0,237.94,107.21Zm-15,34.91-28.57,16.25a8,8,0,0,0-3,3c-.58,1-1.19,2.06-1.81,3.06a7.94,7.94,0,0,0-1.22,4.21l-.15,32.25a95.89,95.89,0,0,1-25.37,14.3L134,199.13a8,8,0,0,0-3.91-1h-.19c-1.21,0-2.43,0-3.64,0a8.08,8.08,0,0,0-4.1,1l-28.84,16.1A96,96,0,0,1,67.88,201l-.11-32.2a8,8,0,0,0-1.22-4.22c-.62-1-1.23-2-1.8-3.06a8.09,8.09,0,0,0-3-3.06l-28.6-16.29a90.49,90.49,0,0,1,0-28.26L61.67,97.63a8,8,0,0,0,3-3c.58-1,1.19-2.06,1.81-3.06a7.94,7.94,0,0,0,1.22-4.21l.15-32.25a95.89,95.89,0,0,1,25.37-14.3L122,56.87a8,8,0,0,0,4.1,1c1.21,0,2.43,0,3.64,0a8.08,8.08,0,0,0,4.1-1l28.84-16.1A96,96,0,0,1,188.12,55l.11,32.2a8,8,0,0,0,1.22,4.22c.62,1,1.23,2,1.8,3.06a8.09,8.09,0,0,0,3,3.06l28.6,16.29A90.49,90.49,0,0,1,222.9,142.12Z"/></symbol><symbol id="ph-hand" viewBox="0 0 256 256"><path d="M188,48a27.75,27.75,0,0,0-12,2.71V44a28,28,0,0,0-54.65-8.6A28,28,0,0,0,80,60v64l-3.82-6.13a28,28,0,0,0-48.6,27.82c16,33.77,28.93,57.72,43.72,72.69C86.24,233.54,103.2,240,128,240a88.1,88.1,0,0,0,88-88V76A28,28,0,0,0,188,48Zm12,104a72.08,72.08,0,0,1-72,72c-20.38,0-33.51-4.88-45.33-16.85C69.44,193.74,57.26,171,41.9,138.58a6.36,6.36,0,0,0-.3-.58,12,12,0,0,1,20.79-12,1.76,1.76,0,0,0,.14.23l18.67,30A8,8,0,0,0,96,152V60a12,12,0,0,1,24,0v60a8,8,0,0,0,16,0V44a12,12,0,0,1,24,0v76a8,8,0,0,0,16,0V76a12,12,0,0,1,24,0Z"/></symbol><symbol id="ph-image-square" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM48,48H208v77.38l-24.69-24.7a16,16,0,0,0-22.62,0L53.37,208H48ZM208,208H76l96-96,36,36v60ZM96,120A24,24,0,1,0,72,96,24,24,0,0,0,96,120Zm0-32a8,8,0,1,1-8,8A8,8,0,0,1,96,88Z"/></symbol><symbol id="ph-link-simple" viewBox="0 0 256 256"><path d="M165.66,90.34a8,8,0,0,1,0,11.32l-64,64a8,8,0,0,1-11.32-11.32l64-64A8,8,0,0,1,165.66,90.34ZM215.6,40.4a56,56,0,0,0-79.2,0L106.34,70.45a8,8,0,0,0,11.32,11.32l30.06-30a40,40,0,0,1,56.57,56.56l-30.07,30.06a8,8,0,0,0,11.31,11.32L215.6,119.6a56,56,0,0,0,0-79.2ZM138.34,174.22l-30.06,30.06a40,40,0,1,1-56.56-56.57l30.05-30.05a8,8,0,0,0-11.32-11.32L40.4,136.4a56,56,0,0,0,79.2,79.2l30.06-30.07a8,8,0,0,0-11.32-11.31Z"/></symbol><symbol id="ph-lock-simple" viewBox="0 0 256 256"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></symbol><symbol id="ph-magnifying-glass" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></symbol><symbol id="ph-magnifying-glass-minus" viewBox="0 0 256 256"><path d="M152,112a8,8,0,0,1-8,8H80a8,8,0,0,1,0-16h64A8,8,0,0,1,152,112Zm77.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88.11,88.11,0,1,1,11.31-11.31l50.07,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z"/></symbol><symbol id="ph-magnifying-glass-plus" viewBox="0 0 256 256"><path d="M152,112a8,8,0,0,1-8,8H120v24a8,8,0,0,1-16,0V120H80a8,8,0,0,1,0-16h24V80a8,8,0,0,1,16,0v24h24A8,8,0,0,1,152,112Zm77.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88.11,88.11,0,1,1,11.31-11.31l50.07,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z"/></symbol><symbol id="ph-paint-bucket" viewBox="0 0 256 256"><path d="M234.53,139.07a8,8,0,0,0,3.13-13.24L122.17,10.34a8,8,0,0,0-11.31,0L70.25,51,45.65,26.34A8,8,0,0,0,34.34,37.66l24.6,24.6L15,106.17a24,24,0,0,0,0,33.94L99.89,225a24,24,0,0,0,33.94,0l78.49-78.49Zm-32.19-5.24-79.83,79.83a8,8,0,0,1-11.31,0L26.34,128.8a8,8,0,0,1,0-11.31L70.25,73.57l29.12,29.12a28,28,0,1,0,11.31-11.32L81.57,62.26l35-34.95L217.19,128l-11.72,3.9A8.09,8.09,0,0,0,202.34,133.83Zm-86.83-26.31,0,0a13.26,13.26,0,1,1-.05.06S115.51,107.53,115.51,107.52Zm123.15,56a8,8,0,0,0-13.32,0C223.57,166.23,208,190.09,208,208a24,24,0,0,0,48,0C256,190.09,240.43,166.23,238.66,163.56ZM232,216a8,8,0,0,1-8-8c0-6.8,4-16.32,8-24.08,4,7.76,8,17.34,8,24.08A8,8,0,0,1,232,216Z"/></symbol><symbol id="ph-plus" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></symbol><symbol id="ph-plus-circle" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm48-88a8,8,0,0,1-8,8H136v32a8,8,0,0,1-16,0V136H88a8,8,0,0,1,0-16h32V88a8,8,0,0,1,16,0v32h32A8,8,0,0,1,176,128Z"/></symbol><symbol id="ph-polygon" viewBox="0 0 256 256"><path d="M230.64,49.36a32,32,0,0,0-45.26,0h0a31.9,31.9,0,0,0-5.16,6.76L152,48.42A32,32,0,0,0,97.37,25.36h0a32.06,32.06,0,0,0-5.76,37.41L57.67,93.32a32.05,32.05,0,0,0-40.31,4.05h0a32,32,0,0,0,42.89,47.41l70,51.36a32,32,0,1,0,47.57-14.69l27.39-77.59q1.38.12,2.76.12a32,32,0,0,0,22.63-54.62Zm-122-12.69h0a16,16,0,1,1,0,22.64A16,16,0,0,1,108.68,36.67Zm-80,94.65a16,16,0,0,1,0-22.64h0a16,16,0,1,1,0,22.64Zm142.65,88a16,16,0,0,1-22.63-22.63h0a16,16,0,1,1,22.63,22.63Zm-8.55-43.18a32,32,0,0,0-23,7.08l-70-51.36a32.17,32.17,0,0,0-1.34-26.65l33.95-30.55a32,32,0,0,0,45.47-10.81L176,71.56a32,32,0,0,0,14.12,27Zm56.56-92.84A16,16,0,1,1,196.7,60.68h0a16,16,0,0,1,22.63,22.63Z"/></symbol><symbol id="ph-share-fat" viewBox="0 0 256 256"><path d="M237.66,106.35l-80-80A8,8,0,0,0,144,32V72.35c-25.94,2.22-54.59,14.92-78.16,34.91-28.38,24.08-46.05,55.11-49.76,87.37a12,12,0,0,0,20.68,9.58h0c11-11.71,50.14-48.74,107.24-52V192a8,8,0,0,0,13.66,5.65l80-80A8,8,0,0,0,237.66,106.35ZM160,172.69V144a8,8,0,0,0-8-8c-28.08,0-55.43,7.33-81.29,21.8a196.17,196.17,0,0,0-36.57,26.52c5.8-23.84,20.42-46.51,42.05-64.86C99.41,99.77,127.75,88,152,88a8,8,0,0,0,8-8V51.32L220.69,112Z"/></symbol><symbol id="ph-shuffle" viewBox="0 0 256 256"><path d="M237.66,178.34a8,8,0,0,1,0,11.32l-24,24a8,8,0,0,1-11.32-11.32L212.69,192H200.94a72.12,72.12,0,0,1-58.59-30.15l-41.72-58.4A56.1,56.1,0,0,0,55.06,80H32a8,8,0,0,1,0-16H55.06a72.12,72.12,0,0,1,58.59,30.15l41.72,58.4A56.1,56.1,0,0,0,200.94,176h11.75l-10.35-10.34a8,8,0,0,1,11.32-11.32ZM143,107a8,8,0,0,0,11.16-1.86l1.2-1.67A56.1,56.1,0,0,1,200.94,80h11.75L202.34,90.34a8,8,0,0,0,11.32,11.32l24-24a8,8,0,0,0,0-11.32l-24-24a8,8,0,0,0-11.32,11.32L212.69,64H200.94a72.12,72.12,0,0,0-58.59,30.15l-1.2,1.67A8,8,0,0,0,143,107Zm-30,42a8,8,0,0,0-11.16,1.86l-1.2,1.67A56.1,56.1,0,0,1,55.06,176H32a8,8,0,0,0,0,16H55.06a72.12,72.12,0,0,0,58.59-30.15l1.2-1.67A8,8,0,0,0,113,149Z"/></symbol><symbol id="ph-sidebar-simple" viewBox="0 0 256 256"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,56H80V200H40ZM216,200H96V56H216V200Z"/></symbol><symbol id="ph-skip-back" viewBox="0 0 256 256"><path d="M199.81,34a16,16,0,0,0-16.24.43L64,109.23V40a8,8,0,0,0-16,0V216a8,8,0,0,0,16,0V146.77l119.57,74.78A15.95,15.95,0,0,0,208,208.12V47.88A15.86,15.86,0,0,0,199.81,34ZM192,208,64.16,128,192,48.07Z"/></symbol><symbol id="ph-skip-forward" viewBox="0 0 256 256"><path d="M200,32a8,8,0,0,0-8,8v69.23L72.43,34.45A15.95,15.95,0,0,0,48,47.88V208.12a16,16,0,0,0,24.43,13.43L192,146.77V216a8,8,0,0,0,16,0V40A8,8,0,0,0,200,32ZM64,207.93V48.05l127.84,80Z"/></symbol><symbol id="ph-sliders-horizontal" viewBox="0 0 256 256"><path d="M40,88H73a32,32,0,0,0,62,0h81a8,8,0,0,0,0-16H135a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16Zm64-24A16,16,0,1,1,88,80,16,16,0,0,1,104,64ZM216,168H199a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16h97a32,32,0,0,0,62,0h17a8,8,0,0,0,0-16Zm-48,24a16,16,0,1,1,16-16A16,16,0,0,1,168,192Z"/></symbol><symbol id="ph-sparkle" viewBox="0 0 256 256"><path d="M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112,223.85,91.78,169A8,8,0,0,0,87,164.22L32.15,144,87,123.78A8,8,0,0,0,91.78,119L112,64.15,132.22,119a8,8,0,0,0,4.74,4.74L191.85,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z"/></symbol><symbol id="ph-squares-four" viewBox="0 0 256 256"><path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/></symbol><symbol id="ph-stack" viewBox="0 0 256 256"><path d="M230.91,172A8,8,0,0,1,228,182.91l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,36,169.09l92,53.65,92-53.65A8,8,0,0,1,230.91,172ZM220,121.09l-92,53.65L36,121.09A8,8,0,0,0,28,134.91l96,56a8,8,0,0,0,8.06,0l96-56A8,8,0,1,0,220,121.09ZM24,80a8,8,0,0,1,4-6.91l96-56a8,8,0,0,1,8.06,0l96,56a8,8,0,0,1,0,13.82l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,24,80Zm23.88,0L128,126.74,208.12,80,128,33.26Z"/></symbol><symbol id="ph-star" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65a8,8,0,0,0-8.38,0L69.09,215.94c-.15.09-.19.12-.38,0a.37.37,0,0,1-.17-.48l14.88-62.8a8,8,0,0,0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16A8,8,0,0,0,103,91.86l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153,91.86a8,8,0,0,0,6.75,4.92l63.92,5.16c.15,0,.24,0,.33.29S224,102.63,223.84,102.73Z"/></symbol><symbol id="ph-sun" viewBox="0 0 256 256"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></symbol><symbol id="ph-swatches" viewBox="0 0 256 256"><path d="M88,180a12,12,0,1,1-12-12A12,12,0,0,1,88,180Zm152-23.81V208a16,16,0,0,1-16,16H76a46.36,46.36,0,0,1-7.94-.68,44,44,0,0,1-35.43-50.95l25-143.13a15.94,15.94,0,0,1,18.47-13L130.84,26a16,16,0,0,1,12.92,18.52l-12.08,69L199.49,89a16,16,0,0,1,20.45,9.52L239,150.69A18.35,18.35,0,0,1,240,156.19ZM103,184.87,128,41.74,73.46,32l-25,143.1A28,28,0,0,0,70.9,207.57,27.29,27.29,0,0,0,91.46,203,27.84,27.84,0,0,0,103,184.87ZM116.78,195,224,156.11,204.92,104,128.5,131.7l-9.78,55.92A44.63,44.63,0,0,1,116.78,195ZM224,173.12,127.74,208H224Z"/></symbol><symbol id="ph-text-aa" viewBox="0 0 256 256"><path d="M87.24,52.59a8,8,0,0,0-14.48,0l-64,136a8,8,0,1,0,14.48,6.81L39.9,160h80.2l16.66,35.4a8,8,0,1,0,14.48-6.81ZM47.43,144,80,74.79,112.57,144ZM200,96c-12.76,0-22.73,3.47-29.63,10.32a8,8,0,0,0,11.26,11.36c3.8-3.77,10-5.68,18.37-5.68,13.23,0,24,9,24,20v3.22A42.76,42.76,0,0,0,200,128c-22.06,0-40,16.15-40,36s17.94,36,40,36a42.73,42.73,0,0,0,24-7.25,8,8,0,0,0,16-.75V132C240,112.15,222.06,96,200,96Zm0,88c-13.23,0-24-9-24-20s10.77-20,24-20,24,9,24,20S213.23,184,200,184Z"/></symbol><symbol id="ph-text-t" viewBox="0 0 256 256"><path d="M208,56V88a8,8,0,0,1-16,0V64H136V192h24a8,8,0,0,1,0,16H96a8,8,0,0,1,0-16h24V64H64V88a8,8,0,0,1-16,0V56a8,8,0,0,1,8-8H200A8,8,0,0,1,208,56Z"/></symbol></svg>
+<div class="gs-desk"></div>
+<div class="gs-window is-framed">
+
+  <!-- ===== title bar 46px ===== -->
+  <header class="gs-titlebar gs-drag">
+    <div class="lights fake-lights"><i></i><i></i><i></i></div>
+    <div class="brand"><span class="mark"><svg class="gs-i xs"><use href="#ph-fill-sun"/></svg></span><span class="word">STILLROOM</span></div>
+    <div class="gs-tools">
+      <button class="gs-ib" aria-pressed="true" aria-label="Select"><svg class="gs-i"><use href="#ph-fill-cursor"/></svg></button>
+      <button class="gs-ib" aria-label="Crop"><svg class="gs-i"><use href="#ph-frame-corners"/></svg></button>
+      <button class="gs-ib" aria-label="White balance"><svg class="gs-i"><use href="#ph-eyedropper"/></svg></button>
+      <button class="gs-ib" aria-label="Brush"><svg class="gs-i"><use href="#ph-paint-bucket"/></svg></button>
+      <button class="gs-ib" aria-label="Text"><svg class="gs-i"><use href="#ph-text-t"/></svg></button>
+      <button class="gs-ib" aria-label="Hand"><svg class="gs-i"><use href="#ph-hand"/></svg></button>
+    </div>
+    <div class="center"><i class="gs-dirty"></i><b>Kyoto roll</b><span>— edited</span><span>· 36 photos · 6000×4000</span></div>
+    <div class="end">
+      <button class="gs-ib" aria-label="Undo"><svg class="gs-i"><use href="#ph-arrow-counter-clockwise"/></svg></button>
+      <button class="gs-ib" aria-label="History"><svg class="gs-i"><use href="#ph-clock-counter-clockwise"/></svg></button>
+      <button class="gs-ib" aria-label="Sidebar"><svg class="gs-i"><use href="#ph-sidebar-simple"/></svg></button>
+      <button class="gs-btn"><svg class="gs-i"><use href="#ph-gear-six"/></svg>Project</button>
+      <button class="gs-btn is-primary"><svg class="gs-i"><use href="#ph-bold-export"/></svg>Export</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- ===== left pane ===== -->
+    <aside class="gs-pane gs-split-r a-left">
+      <div class="tabs-pad">
+        <div class="gs-seg" role="tablist" style="--i:1;--n:2">
+          <button role="tab" aria-selected="false"><svg class="gs-i"><use href="#ph-squares-four"/></svg>Library</button>
+          <button role="tab" aria-selected="true"><svg class="gs-i"><use href="#ph-sparkle"/></svg>Looks</button>
+        </div>
+      </div>
+      <div class="pad"><label class="gs-search"><svg class="gs-i"><use href="#ph-magnifying-glass"/></svg><input placeholder="Search looks, presets, tools"><kbd class="gs-kbd">⌘F</kbd></label></div>
+      <div class="pad" style="margin-top:var(--s-3)">
+        <div class="gs-subtabs" role="tablist">
+          <button role="tab" aria-selected="true">All</button><button role="tab">Favourites</button><button role="tab">Mine</button><button role="tab">Film</button>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="gs-section">Adjust<span class="count">7</span></div>
+        <div class="gs-row"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-sun"/></svg></span><span class="name">Exposure</span><span class="hint">light</span></div>
+        <div class="gs-row" aria-selected="true"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-drop-half"/></svg></span><span class="name">Colour balance</span><span class="hint">temp · tint</span></div>
+        <div class="gs-row"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-faders"/></svg></span><span class="name">Curves</span><span class="hint">rgb</span></div>
+        <div class="gs-row"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-swatches"/></svg></span><span class="name">Split tone</span><span class="hint">hue</span></div>
+        <div class="gs-row"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-crosshair-simple"/></svg></span><span class="name">Sharpen</span><span class="hint">detail</span></div>
+        <div class="gs-row"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-dice-five"/></svg></span><span class="name">Grain</span><span class="hint">film</span></div>
+        <div class="gs-row"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-circle"/></svg></span><span class="name">Vignette</span><span class="hint">lens</span></div>
+        <div class="gs-section">Quick add</div>
+        <div class="gs-tiles">
+          <div class="gs-tile"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-stack"/></svg></span><span style="min-width:0"><b>Layer</b><small>adjust below</small></span></div>
+          <div class="gs-tile"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-polygon"/></svg></span><span style="min-width:0"><b>Mask</b><small>pen · auto</small></span></div>
+          <div class="gs-tile"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-text-aa"/></svg></span><span style="min-width:0"><b>Caption</b><small>burned in</small></span></div>
+          <div class="gs-tile"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-image-square"/></svg></span><span style="min-width:0"><b>Frame</b><small>border</small></span></div>
+        </div>
+        <div class="gs-section">Film looks<span class="count">4</span></div>
+        <div class="gs-row"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-film-strip"/></svg></span><span class="name">Portra dusk</span><svg class="gs-i sm" style="color:var(--warn)"><use href="#ph-fill-star"/></svg></div>
+        <div class="gs-row"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-film-strip"/></svg></span><span class="name">Tri-X push</span><span class="hint">b&amp;w</span></div>
+        <div class="gs-row"><span class="gs-tile-ic"><svg class="gs-i"><use href="#ph-film-strip"/></svg></span><span class="name">Velvia 50</span><span class="hint">slide</span></div>
+      </div>
+    </aside>
+
+    <!-- ===== center ===== -->
+    <main class="gs-pane gs-split-r a-center">
+      <div class="vhead"><svg class="gs-i sm" style="color:var(--muted)"><use href="#ph-image-square"/></svg>IMG_0412.RAF<span class="m">· Kyoto roll</span>
+        <span class="r"><span class="meter"><i></i><i></i><i></i><i></i><i></i><i></i><i class="o"></i><i class="o"></i></span>Cached · Portra dusk · P3</span></div>
+      <div class="stage gs-stage">
+        <div class="photo"><div class="sky"></div><div class="sun"></div><div class="hill1"></div><div class="hill2"></div></div>
+      </div>
+      <div class="gs-statusbar">
+        <div class="gs-tc">12 / 36 <small>· 1/125 · f2.8 · ISO 200</small></div>
+        <div class="nav">
+          <button class="gs-ib" aria-label="First"><svg class="gs-i"><use href="#ph-skip-back"/></svg></button>
+          <button class="gs-ib" aria-label="Previous"><svg class="gs-i"><use href="#ph-caret-left"/></svg></button>
+          <button class="gs-play" aria-label="Slideshow"><svg class="gs-i"><use href="#ph-fill-play"/></svg></button>
+          <button class="gs-ib" aria-label="Next"><svg class="gs-i"><use href="#ph-caret-right"/></svg></button>
+          <button class="gs-ib" aria-label="Last"><svg class="gs-i"><use href="#ph-skip-forward"/></svg></button>
+          <span class="gs-sep"></span>
+          <button class="gs-ib is-on" aria-label="Before / after"><svg class="gs-i"><use href="#ph-fill-intersect"/></svg></button>
+        </div>
+        <div class="v-end">
+          <button class="gs-ib" aria-label="Loupe"><svg class="gs-i"><use href="#ph-magnifying-glass-plus"/></svg></button>
+          <button class="gs-mini"><svg class="gs-i xs"><use href="#ph-arrows-out-cardinal"/></svg>Full</button>
+          <button class="gs-mini"><svg class="gs-i xs"><use href="#ph-frame-corners"/></svg>Fit</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===== right: inspector ===== -->
+    <aside class="gs-pane a-right">
+      <div class="gs-head">
+        <span class="badge"><svg class="gs-i"><use href="#ph-fill-image-square"/></svg></span>
+        <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="title">IMG_0412</span><span class="sub">RAW · 24.1 MP · 3:2</span></span>
+        <span style="margin-left:auto;display:flex;gap:2px">
+          <button class="gs-ib sm" aria-label="Add"><svg class="gs-i sm"><use href="#ph-plus"/></svg></button>
+          <button class="gs-ib sm" aria-label="Pick"><svg class="gs-i sm"><use href="#ph-star"/></svg></button>
+          <button class="gs-ib sm" aria-label="Flag"><svg class="gs-i sm"><use href="#ph-flag"/></svg></button>
+        </span>
+      </div>
+      <div class="tabs-pad">
+        <div class="gs-seg is-compact" role="tablist" style="--i:0;--n:4">
+          <button role="tab" aria-selected="true"><svg class="gs-i"><use href="#ph-sun"/></svg>Light</button>
+          <button role="tab"><svg class="gs-i"><use href="#ph-drop-half"/></svg>Colour</button>
+          <button role="tab"><svg class="gs-i"><use href="#ph-crosshair-simple"/></svg>Detail</button>
+          <button role="tab"><svg class="gs-i"><use href="#ph-share-fat"/></svg>Out</button>
+        </div>
+      </div>
+      <div class="scroll stack">
+        <section class="gs-card">
+          <div class="gs-card-h">
+            <span class="grip"><svg class="gs-i sm"><use href="#ph-dots-six-vertical"/></svg></span>
+            <span class="t"><span class="ic"><svg class="gs-i"><use href="#ph-fill-sun"/></svg></span>Exposure</span>
+            <button class="gs-switch" role="switch" aria-checked="true" aria-label="Enable Exposure"></button>
+            <button class="gs-ib sm chev" aria-label="Collapse"><svg class="gs-i sm"><use href="#ph-caret-down"/></svg></button>
+          </div>
+          <div class="gs-card-b">
+            <div class="gs-slider-row"><label>Exposure</label><div class="gs-slider"><div class="track"><div class="fill" style="width:62%"></div></div><div class="knob" style="left:62%"></div></div><span class="gs-num">+0.40</span></div>
+            <div class="gs-slider-row"><label>Contrast</label><div class="gs-slider"><div class="track"><div class="fill" style="width:56%"></div></div><div class="knob" style="left:56%"></div></div><span class="gs-num">+12</span></div>
+            <div class="gs-slider-row"><label>Highlights</label><div class="gs-slider"><div class="track"><div class="fill" style="width:30%"></div></div><div class="knob" style="left:30%"></div></div><span class="gs-num">−40</span></div>
+            <div class="gs-slider-row"><label>Shadows</label><div class="gs-slider"><div class="track"><div class="fill" style="width:50%"></div></div><div class="knob" style="left:50%"></div></div><span class="gs-num">0</span></div>
+          </div>
+        </section>
+        <section class="gs-card is-selected">
+          <div class="gs-card-h">
+            <span class="grip"><svg class="gs-i sm"><use href="#ph-dots-six-vertical"/></svg></span>
+            <span class="t"><span class="ic"><svg class="gs-i"><use href="#ph-fill-drop-half"/></svg></span>Colour balance</span>
+            <button class="gs-switch" role="switch" aria-checked="true" aria-label="Enable Colour balance"></button>
+            <button class="gs-ib sm chev" aria-label="Collapse"><svg class="gs-i sm"><use href="#ph-caret-down"/></svg></button>
+          </div>
+          <div class="gs-card-b">
+            <div class="gs-seg is-compact" role="tablist" style="--i:1;--n:3"><button role="tab">As shot</button><button role="tab" aria-selected="true">Custom</button><button role="tab">Auto</button></div>
+            <div class="gs-slider-row"><label>Temperature</label><div class="gs-slider"><div class="track"><div class="fill" style="width:68%"></div></div><div class="knob" style="left:68%"></div></div><span class="gs-num">5600</span></div>
+            <div class="gs-slider-row"><label>Tint</label><div class="gs-slider"><div class="track"><div class="fill" style="width:47%"></div></div><div class="knob" style="left:47%"></div></div><span class="gs-num">−3</span></div>
+            <div class="chip-row"><span class="lbl">Protect skin</span><button class="gs-switch" role="switch" aria-checked="false" aria-label="Protect skin"></button></div>
+          </div>
+        </section>
+        <section class="gs-card is-collapsed is-off">
+          <div class="gs-card-h">
+            <span class="grip"><svg class="gs-i sm"><use href="#ph-dots-six-vertical"/></svg></span>
+            <span class="t"><span class="ic"><svg class="gs-i"><use href="#ph-circle"/></svg></span>Vignette</span>
+            <button class="gs-switch" role="switch" aria-checked="false" aria-label="Enable Vignette"></button>
+            <button class="gs-ib sm chev" aria-label="Expand"><svg class="gs-i sm"><use href="#ph-caret-down"/></svg></button>
+          </div>
+          <div class="gs-card-b"></div>
+        </section>
+        <div class="gs-empty"><svg class="gs-i" style="margin:0 auto 6px"><use href="#ph-plus-circle"/></svg>Drop a look here, or on a photo</div>
+      </div>
+    </aside>
+
+    <!-- ===== bottom strip (deeper glass) ===== -->
+    <section class="gs-pane is-deep gs-row-split gs-split-r a-bottom">
+      <div class="gs-toolbar">
+        <button class="gs-ib is-on" aria-label="Snap"><svg class="gs-i"><use href="#ph-fill-magnet"/></svg></button>
+        <button class="gs-ib is-on" aria-label="Link"><svg class="gs-i"><use href="#ph-link-simple"/></svg></button>
+        <span class="gs-sep"></span>
+        <button class="gs-ib" aria-label="Rate"><svg class="gs-i"><use href="#ph-star"/></svg></button>
+        <button class="gs-ib" aria-label="Flag"><svg class="gs-i"><use href="#ph-flag"/></svg></button>
+        <button class="gs-ib" aria-label="Bookmark"><svg class="gs-i"><use href="#ph-bookmark-simple"/></svg></button>
+        <button class="gs-ib" aria-label="Hide"><svg class="gs-i"><use href="#ph-eye-slash"/></svg></button>
+        <span class="meta">36 photos · 8 picks · 2 flagged</span>
+        <span style="margin-left:auto;display:flex;gap:2px;align-items:center">
+          <button class="gs-btn is-ghost"><svg class="gs-i sm"><use href="#ph-sliders-horizontal"/></svg>Sort: Capture time<svg class="gs-i xs"><use href="#ph-caret-down"/></svg></button>
+          <button class="gs-ib" aria-label="Zoom out"><svg class="gs-i"><use href="#ph-magnifying-glass-minus"/></svg></button>
+          <button class="gs-ib" aria-label="Zoom in"><svg class="gs-i"><use href="#ph-magnifying-glass-plus"/></svg></button>
+          <button class="gs-ib" aria-label="Fit"><svg class="gs-i"><use href="#ph-arrows-horizontal"/></svg></button>
+        </span>
+      </div>
+      <div class="strip">
+        <div class="thumb"><div class="img t2"></div><div class="cap">0409<svg class="gs-i star"><use href="#ph-fill-star"/></svg></div></div>
+        <div class="thumb"><div class="img t3"></div><div class="cap">0410</div></div>
+        <div class="thumb"><div class="img t4"></div><div class="cap">0411<svg class="gs-i flag"><use href="#ph-fill-flag"/></svg></div></div>
+        <div class="thumb sel"><div class="img t1"></div><div class="cap" style="color:var(--ink)">0412<svg class="gs-i star"><use href="#ph-fill-star"/></svg></div></div>
+        <div class="thumb"><div class="img t5"></div><div class="cap">0413</div></div>
+        <div class="thumb"><div class="img t6"></div><div class="cap">0414<svg class="gs-i star"><use href="#ph-fill-star"/></svg></div></div>
+        <div class="thumb"><div class="img t7"></div><div class="cap">0415</div></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== overlays, shown open for reference ===== -->
+  <div class="gs-raised gs-tip tip-at" style="animation:none">White balance<span class="k">W</span></div>
+  <div class="gs-popover gs-menu menu-at" style="animation:none" role="menu">
+    <div class="lbl">Sort by</div>
+    <div class="item"><svg class="gs-i"><use href="#ph-check"/></svg>Capture time<span class="k">⌥1</span></div>
+    <div class="item" data-highlighted><svg class="gs-i"><use href="#ph-star"/></svg>Rating<span class="k">⌥2</span></div>
+    <div class="item"><svg class="gs-i"><use href="#ph-flag"/></svg>Flag<span class="k">⌥3</span></div>
+    <div class="rule"></div>
+    <div class="item"><svg class="gs-i"><use href="#ph-shuffle"/></svg>Shuffle</div>
+    <div class="item" aria-disabled="true"><svg class="gs-i"><use href="#ph-lock-simple"/></svg>Custom order</div>
+  </div>
+  <div class="gs-toast" style="position:absolute;animation:none">Exported 8 photos to Kyoto/Picks</div>
+</div>
+</body>
+</html>

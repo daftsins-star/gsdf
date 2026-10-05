@@ -30,8 +30,7 @@ one line per command with its exit code, and exits:
 | 2 | `NONE CONFIGURED` — nothing to run | nothing broke, but nothing is proven either. Say so, and ask once whether to approve unverified. Only a yes continues, and the report says `Verified: nothing configured — not verified` |
 
 Copy its output into the report. **Never write a tick for a command you did not see run**: an
-unconfigured project and a passing one must not look alike, which is the bug this replaced.
-Exit 2 is the case that bug wore as a disguise — treat it as unproven, never as passing.
+unconfigured project and a passing one must not look alike. Exit 2 is unproven, never passing.
 
 **2. Guard the parameter ABI — the other gate.** `gsdf params`. Advisory until
 `abi_frozen: true` is set in `config.json` — before a release, churn is what you want. After
@@ -61,8 +60,7 @@ the cause; that is what makes a note findable next time. Add something unlogged 
 phase truly taught it — if that keeps happening, log `FINDING:` during the work instead.
 
 **Zero findings is a normal answer.** Padding with project history is worse than an empty
-file: it puts noise where signal is trusted. If living-brain is installed its Stop hook
-promotes the file on its own.
+file. If living-brain is installed its Stop hook promotes the file on its own.
 
 **6. Advance.**
 
@@ -105,6 +103,9 @@ Findings: <n> collated (or "none — nothing reusable")
 Next phase: <NN+1> <slug>
 Run: `/gsdf:discuss <NN+1>` or `/gsdf:plan <NN+1>`.
 ```
+
+**9. Auto mode carries on.** If `gsdf cfg auto` is on and you are not already inside
+`/gsdf:auto`, replace the `Run:` line with "Building the rest on my own." and run `/gsdf:auto`.
 
 </process>
 

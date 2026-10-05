@@ -20,8 +20,8 @@ checkable by someone who was not here.
 | 1 | cmake --build build --config Release && ctest -R Gain | 0 | `12/12 tests passed` |
 
 ## Try it
-Copied from PLAN, corrected to reality (actual paths, actual commands). This is what iterate
-mode shows the user.
+Copied from PLAN, corrected to reality. What the user does once GSDF has rebuilt and installed
+the work — where to find it, what to touch, what should happen. Never a build command.
 
 ## Needs human check
 Things no command can verify: visual, UX, sound. One bullet each. Feeds iterate mode.

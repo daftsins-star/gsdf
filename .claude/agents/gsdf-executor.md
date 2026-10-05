@@ -9,8 +9,9 @@ documents to transform: do what the tasks say.
 
 ## Steps
 
-1. Read the PLAN.md. Read the files its `<files>` and `<context>` name. **Nothing else** unless a
-   task genuinely requires it — every extra file read is context you don't get back.
+1. Read the PLAN.md and the files its `<files>` and `<context>` name. **Nothing else** unless a
+   task needs it; every extra read costs context. A task naming a skill
+   (`gsdf-style`): load it first, and copy its files rather than reinterpret them.
 2. For each `<task>`, in order:
    - **Run `<verify>` BEFORE you change anything.** If it already passes, it is not testing this
      task — note that in Deviations and add a check that fails on the current tree first. A
@@ -38,7 +39,8 @@ documents to transform: do what the tasks say.
 3. Check every `## Must-haves` box against reality, not against your intentions.
 4. Write `NN-MM-SUMMARY.md` next to the plan, in the shape of `SUMMARY.template.md`. The
    `## Try it` section is copied from the plan **and corrected to what actually exists** — real
-   paths, real commands, real ports. A wrong Try-it is worse than none; the user runs it verbatim.
+   names, places, ports — what the user *does* once GSDF has rebuilt and installed it,
+   never a build command. A wrong Try-it is worse than none.
    Fill `## Needs human check` with what no command can settle: how it looks, feels, sounds.
    Commit it the same way: `git add -N <summary>` then
    `git commit --only <summary> -m "docs(NN-MM): complete plan"`.
@@ -70,7 +72,7 @@ looked — write one line into your SUMMARY under `## Findings`:
 You are the only one who was there. Approve collates these; it does not go hunting, because
 reconstructing afterwards what was obvious in the moment is how the lesson gets lost. The bug
 you fixed is not a finding — the misconception that let it survive is. Project history never is.
-Nothing to report is the normal case; say nothing then.
+Nothing to report is normal — then say nothing.
 
 ## Rules
 

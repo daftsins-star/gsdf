@@ -31,8 +31,10 @@ echo "Installing GSDF → $DEST"
 mkdir -p "$DEST/commands/gsdf" "$DEST/agents" "$DEST/skills" "$DEST/bin"
 cp "$SRC"/.claude/commands/gsdf/*.md "$DEST/commands/gsdf/"
 cp "$SRC"/.claude/agents/gsdf-*.md   "$DEST/agents/"
-rm -rf "$DEST/skills/gsdf-templates"
-cp -R "$SRC/.claude/skills/gsdf-templates" "$DEST/skills/"
+for sk in gsdf-templates gsdf-style; do
+  rm -rf "$DEST/skills/$sk"
+  cp -R "$SRC/.claude/skills/$sk" "$DEST/skills/"
+done
 cp "$SRC/bin/gsdf" "$DEST/bin/gsdf"
 chmod +x "$DEST/bin/gsdf"
 

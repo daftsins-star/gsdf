@@ -28,5 +28,6 @@ Only what the executor needs. ≤ 30 lines. Point to files, don't quote them.
 - [ ] One bullet per observable outcome.
 
 ## Try it
-How the user will see this working after execution. Concrete: the target to build, the file to
-open, the URL. For webview UI work: how to open the UI standalone in a browser without a DAW.
+How the user will see this working, once GSDF has rebuilt and installed it (`gsdf rebuild`).
+Concrete: where to find it (the DAW, the app, the URL), what to touch, what should happen.
+No build commands — the user is never told to run one.

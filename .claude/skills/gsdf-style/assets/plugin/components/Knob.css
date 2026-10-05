@@ -1,0 +1,47 @@
+/* Knob.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.knob {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.knob-dial {
+  position: relative;
+  flex: none;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.knob-dial svg { display: block; }
+.knob-dial rect.off { fill: var(--ink-hair); }
+.knob-dial rect.on  { fill: var(--ink-text); }
+.knob-dial:hover rect.off { fill: var(--ink-rule); }
+.knob.is-dragging rect.on { fill: var(--ink-live); }
+
+.knob-val {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  color: var(--ink-text);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.knob--26 .knob-val { font-size: var(--text-nano); }
+.knob--44 .knob-val { font-size: var(--text-sm); }
+
+.knob-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink-dim);
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-caps);
+  white-space: nowrap;
+}
+.knob:hover .knob-lbl, .knob.is-dragging .knob-lbl { color: var(--ink-text); }

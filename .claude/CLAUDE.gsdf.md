@@ -12,6 +12,12 @@ no subagents, run the smallest verify from `config.json` that proves the change,
 accepted change with `gsdf iter log N "<want> → <did> [files]"`. Rules the user states
 ("always…", "from now on…") get logged with a `DECISION:` prefix. No commits during iterate.
 
+**Before telling the user to try anything, run `gsdf rebuild`** — it builds and installs. Never
+hand the user a command to run first. Each change ends with what to try. With
+`gsdf cfg plain_language` on, talk in everyday words and never ask technical questions.
+UI work with no named style follows the `gsdf-style` skill (GSDF Style Guide by Daftsins).
+`/gsdf:auto` builds on its own; `/gsdf:cfg` shows the settings.
+
 **"approved" ends it** — that runs `/gsdf:approve`: verify, one commit
 `feat(NN): approve phase NN — <k> iterations`, then advance. Per-task commits during execute
 are `type(NN-MM): task name`.

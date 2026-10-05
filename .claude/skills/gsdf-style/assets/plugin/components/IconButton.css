@@ -1,0 +1,25 @@
+/* IconButton.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.px-icon { display: block; flex: none; }
+
+.ib {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: var(--hair) solid var(--ink-rule);
+  color: var(--ink-text);
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-caps);
+  white-space: nowrap;
+}
+.ib--sm { height: var(--ctl-sm); min-width: var(--ctl-sm); }
+.ib--md { height: var(--ctl-md); min-width: var(--ctl-md); }
+.ib--label { padding: 0 var(--space-2) 0 var(--space-1); }
+.ib:hover { border-color: var(--ink-text); }
+.ib[aria-pressed="true"] { background: var(--ink-live); border-color: var(--ink-live); color: var(--ink-on-accent); }
+.ib:disabled { color: var(--ink-rule); border-color: var(--ink-hair); cursor: default; }
+
+.ib--bare { border-color: transparent; color: var(--ink-dim); }
+.ib--bare:hover { border-color: transparent; color: var(--ink-text); }
+.ib--bare[aria-pressed="true"] { background: none; border-color: transparent; color: var(--ink-text); }

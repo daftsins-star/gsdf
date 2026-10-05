@@ -43,16 +43,17 @@ never run marks it ready for review when half of it does not exist yet.
 .claude/bin/gsdf state defer "<each Deferred bullet from each summary>"
 .claude/bin/gsdf state set status iterating
 .claude/bin/gsdf state position "Phase NN executed, iterating."
-.claude/bin/gsdf iter start N                   # creates NN-ITERATIONS.md, logs nothing
+.claude/bin/gsdf rebuild                        # builds AND installs — the user never has to
 .claude/bin/gsdf tryit N
+.claude/bin/gsdf iter start N                   # creates NN-ITERATIONS.md, logs nothing
 ```
 
-Print the `tryit` output — that's the build/open instructions and the list of things only a human
-can judge.
+A failed `rebuild` is not a handoff: fix it first, the same way a failed verify is fixed. Then
+print the `tryit` output — what to try, and the things only a human can judge.
 
-**5. Offer the UI, if there is one.** If `config.ui_dir` exists and this phase touched it, offer
-to run `config.verify.ui_dev` in the background so the UI is open in a browser before the user
-starts reviewing. One line, and take yes/no.
+**5. Open what there is to look at.** A mockup phase: open each mockup in `.planning/design/`
+in the browser and name them A, B, C. Otherwise, if this phase touched `config.ui_dir`, start
+`config.verify.ui_dev` in the background and open it — don't ask, and don't hand the user a command.
 
 **6. Enter iterate mode.** Say, in one line:
 

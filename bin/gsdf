@@ -490,6 +490,11 @@ def cmd_lint(pl, p):
         if len(re.findall(r"<task[\s>]", txt)) > len(re.findall(r"<done>", txt)):
             bad.append("%s: a task has no <done>" % pid)
         if not section(txt, "Try it"): bad.append("%s: no '## Try it' — the user cannot see the result" % pid)
+        # The user is never told to build: `gsdf rebuild` runs before every handoff. A Try-it
+        # that says "first run cmake --build" is the step the user asked never to see again.
+        elif BUILD_CMD.search(section(txt, "Try it")):
+            bad.append("%s: '## Try it' tells the user to build (%s) — `gsdf rebuild` does that; say what to try"
+                       % (pid, BUILD_CMD.search(section(txt, "Try it")).group(0)))
     # Zero plans is not zero problems. /gsdf:plan runs this as its gate, so a planner
     # that wrote nothing scored "0 plan(s) pass all gates" and exit 0 -- a green light
     # on an empty phase, which is the one failure the gate exists to catch.
@@ -503,6 +508,7 @@ def cmd_lint(pl, p):
     if n == len(done): return print("phase %s: every plan already executed — nothing to gate" % p["prefix"])
     print("phase %s: %d plan(s) pass all gates" % (p["prefix"], n - len(done)))
 
+BUILD_CMD = re.compile(r"cmake\s+(--build|-B)|npm\s+(run\s+(build|dev)|install|ci)\b|xcodebuild|msbuild|\bmake\s+(-j|all|install)", re.I)
 def cmd_tryit(pl, p):
     files = sorted(p["dir"].glob(p["prefix"] + "-*-SUMMARY.md")) if p["dir"] else []
     for f in files:
@@ -559,6 +565,9 @@ def templates():
               Path.cwd() / ".claude/skills/gsdf-templates", Path.home() / ".claude/skills/gsdf-templates"]:
         if c.is_dir(): return c.resolve()
     return None
+def npm_scripts(d):
+    try: return json.loads(read(Path(d) / "package.json") or "{}").get("scripts") or {}
+    except (json.JSONDecodeError, AttributeError): return {}
 def detect(root):
     cfg = {"verify": {}, "phases_per_milestone": 4, "research": "auto"}
     cm = read(root / "CMakeLists.txt")
@@ -568,15 +577,25 @@ def detect(root):
         cfg["verify"].update(build="cmake --build build --config Release", test="ctest --test-dir build --output-on-failure")
         cfg["standalone_target"] = name + "_Standalone"
     ui = next((d for d in ("ui", "Source/ui", "web") if (root / d / "package.json").exists()), None)
+    sc = {}
     if ui:
-        try: sc = json.loads(read(root / ui / "package.json")).get("scripts", {})
-        except json.JSONDecodeError: sc = {}
+        sc = npm_scripts(root / ui)
         cfg["ui_dir"] = ui
         # "test" is the convention, but a UI that is tested through a named script
         # (test:ui, test:e2e) is otherwise silently recorded as having no tests.
         t = next((k for k in ("test", "test:ui", "test:e2e", "test:unit") if k in sc), None)
         if t: cfg["verify"]["ui"] = "cd %s && npm run %s" % (ui, t)
         if "dev" in sc: cfg["verify"]["ui_dev"] = "cd %s && npm run dev" % ui
+    # rebuild = what makes the thing the user tests current. A WebView plugin bundles its UI,
+    # so the UI build comes first; a missing build/ is configured rather than failed on.
+    uib = ui and "build" in sc
+    if cm:
+        cfg["rebuild"] = ("(cd %s && npm run build) && " % ui if uib else "") + \
+            "{ [ -d build ] || cmake -B build -DCMAKE_BUILD_TYPE=Release; } && cmake --build build --config Release"
+    elif "build" in npm_scripts(root):
+        cfg["rebuild"] = "npm run build"
+    elif uib:
+        cfg["rebuild"] = "cd %s && npm run build" % ui
     # A repo that ships its own validator knows more than a guess does: sinemill's
     # scripts/validate.sh already does universal-binary + pluginval + auval, and
     # fetches pluginval itself. Prefer it, and write NOTHING rather than a
@@ -870,6 +889,84 @@ def cmd_verify(pl, p):
         if r.returncode: bad += 1
     print("verify: %d/%d passed" % (len(cmds) - bad, len(cmds)))
     return 1 if bad else 0
+
+
+# ---------- settings / rebuild ----------
+# How GSDF behaves for this project. One table so `gsdf cfg`, new-project's questions and the
+# command docs cannot drift apart: a setting that is not here does not exist. Every default is
+# on, auto included: a project that skipped the questions, or predates them, gets the full mode.
+SETTINGS = [
+    ("auto", "bool", True, "work on its own: discuss up front, stop only at the mockups, build the rest"),
+    ("plain_language", "bool", True, "talk to the user as a non-programmer; never ask technical questions"),
+    ("phases_per_milestone", "int", 4, "how many phases a roadmap aims for"),
+    ("ui_first", "bool", True, "a project with a UI starts with a mockup phase"),
+    ("ui_style", "str", "gsdf", "UI look when the project names none (gsdf = GSDF Style Guide by Daftsins)"),
+    ("research", "auto|always|never", "auto", "when the planner searches the web"),
+    ("commit_docs", "bool", True, "commit .planning/ files as they are written"),
+    ("rebuild", "str", "", "rebuilds AND installs the product; runs before every 'try it'"),
+]
+SET = {k: (t, d, h) for k, t, d, h in SETTINGS}
+def onoff(v): return "on" if v else "off"
+def setting(pl, k):
+    """A setting's effective value: config.json's when it is there and well-typed, else the
+    default. `rebuild` falls back to what detect() would write, so a project adopted before
+    the key existed still rebuilds rather than telling the user to run a command."""
+    t, d, _ = SET[k]; v = config(pl).get(k)
+    if k == "rebuild" and not (isinstance(v, str) and v.strip()):
+        return detect(pl.parent).get("rebuild", "")
+    if t == "bool": return v if isinstance(v, bool) else d
+    if t == "int": return v if isinstance(v, int) and not isinstance(v, bool) and v > 0 else d
+    if "|" in t: return v if v in t.split("|") else d
+    return v if isinstance(v, str) else d
+def show(t, v): return onoff(v) if t == "bool" else (str(v) if v != "" else "(none)")
+def parse_setting(k, raw):
+    t = SET[k][0]; r = raw.strip()
+    if t == "bool":
+        if r.lower() in ("on", "true", "yes", "1"): return True
+        if r.lower() in ("off", "false", "no", "0"): return False
+        die("%s is on or off, not %r" % (k, raw))
+    if t == "int":
+        if not r.isdigit() or int(r) < 1: die("%s is a whole number of 1 or more, not %r" % (k, raw))
+        return int(r)
+    if "|" in t and r not in t.split("|"): die("%s is one of %s, not %r" % (k, t.replace("|", ", "), raw))
+    return r
+def cmd_cfg(pl, a):
+    if not a:
+        for k, t, d, h in SETTINGS:
+            v = setting(pl, k)
+            shown = ("set" if v else "(none)") if k == "rebuild" else show(t, v)
+            print("%-21s %-8s %s%s" % (k, shown, h, "" if v == d or k == "rebuild" else "   [default %s]" % show(t, d)))
+        r = setting(pl, "rebuild")
+        if r: print("\nrebuild: %s" % r)
+        return print("\nChange one: gsdf cfg <setting> <value>")
+    k = a[0]
+    if k not in SET: die("unknown setting: %s (one of: %s)" % (k, ", ".join(SET)))
+    if len(a) == 1: return print(show(SET[k][0], setting(pl, k)))
+    v = parse_setting(k, " ".join(a[1:]))
+    with locked(pl):
+        cfg = config(pl, strict=True); cfg[k] = v
+        (pl / "config.json").write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+    print("%s = %s" % (k, show(SET[k][0], v)))
+def cmd_rebuild(pl):
+    """Rebuild and install, so 'try it' is never preceded by 'first run this'. Output is
+    captured: a JUCE build prints thousands of lines, and an agent pays for every one."""
+    root = pl.parent; c = setting(pl, "rebuild")
+    if not c: die("nothing to rebuild with — no CMakeLists.txt or npm build script found.\n"
+                  "Set one: gsdf cfg rebuild \"<command that builds and installs>\"")
+    cm = read(root / "CMakeLists.txt")
+    if re.search(r"juce_add_plugin", cm) and not re.search(r"COPY_PLUGIN_AFTER_BUILD\s+TRUE", cm, re.I):
+        print("warning: juce_add_plugin without COPY_PLUGIN_AFTER_BUILD TRUE — this builds the plugin\n"
+              "         but does not install it. Add that flag, or add an install step to `rebuild`.")
+    t0 = datetime.now()
+    r = subprocess.run(c, shell=True, cwd=root, capture_output=True, text=True)
+    secs = (datetime.now() - t0).seconds
+    if r.returncode:
+        tail = [l for l in (r.stdout + r.stderr).splitlines() if l.strip()][-15:]
+        if tail: print("\n".join(tail))
+        print("rebuild FAILED (exit %d, %ds): %s" % (r.returncode, secs, c))
+        return 1
+    print("rebuilt and installed (%ds): %s" % (secs, c))
+    return 0
 
 
 def cmd_findings(pl, p):
@@ -1259,6 +1356,8 @@ TRACE_RULES = [
      "a phase was advanced without gsdf findings -- approve.md step 5 was skipped"),
     ("execute handed off with tryit",("iter", "start"),    ("tryit",),
      "iterate mode was entered without gsdf tryit -- execute.md step 4 was skipped"),
+    ("rebuilt before the handoff",   ("iter", "start"),    ("rebuild",),
+     "iterate mode was entered without gsdf rebuild -- the user would test a stale build"),
     ("plans were linted",            ("iter", "start"),    ("lint",),
      "a phase reached execute without gsdf lint -- plan.md step 3 was skipped"),
 ]
@@ -1309,6 +1408,8 @@ USAGE = {
     "verify":    "gsdf verify [N]               run the phase's checks; exit 0 pass / 1 fail / 2 nothing configured",
     "findings":  "gsdf findings [N]             FINDING: lines and summary ## Findings",
     "params":    "gsdf params [N] [--write]     parameter ABI guard; reads only, --write (re)locks params.lock",
+    "cfg":       "gsdf cfg [<setting> [<value>]]  how GSDF behaves here; with a value, writes config.json",
+    "rebuild":   "gsdf rebuild                  rebuild and install the product; quiet unless it fails",
     "update":    "gsdf update [--check] [--force] [--main]   compare with GitHub, reinstall when behind",
     "bug":       "gsdf bug \"<one line>\"        record a GSDF bug you just hit, then carry on",
     "bugs":      "gsdf bugs [--count] [--fixed <id> [note]] [--clear]   open bug reports; --fixed retires one",
@@ -1355,6 +1456,8 @@ def main(a):
     if c == "next": return cmd_next(pl)
     pl = pl or need()
     if c == "adopt": return cmd_adopt(pl)
+    if c == "cfg": return cmd_cfg(pl, a[1:])
+    if c == "rebuild": sys.exit(cmd_rebuild(pl))
     if c == "state":
         if len(a) == 1: return cmd_state(pl)
         s = a[1]

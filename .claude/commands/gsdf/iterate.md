@@ -41,8 +41,13 @@ context to move a slider 4px.
 - DSP or any C++ → `verify.build`, plus `verify.test` if you touched behaviour a test covers.
 - A doc, a comment, a string → nothing.
 
-**Say what you did in one line, and how to see it.** Not a summary of the diff. "Knob min-size
-is now 44px and scales with the parent — refresh the browser."
+**Then rebuild — always, before the user hears "try it".** If the change reaches anything the
+user tests (the plugin, the app, the UI bundle), run `gsdf rebuild`: it builds and installs. The
+user is never told to run a command; a failed rebuild is yours to fix before you report.
+
+**Say what you did in one line, and what to try.** Not a summary of the diff. "Knob min-size is
+now 44px — reopen the plugin window and drag the corner: the knobs should grow with it." With
+`gsdf cfg plain_language` on, no file names or jargon in that line.
 
 **Log accepted changes, one line each:**
 
@@ -70,8 +75,11 @@ is cheap to drop later, an unrecorded one is gone.
 the obvious one, do it, and say which reading you took.
 
 **New feature ≠ iteration.** If the request is a new capability rather than a correction to what
-this phase delivered, say so in one sentence and offer `/gsdf:quick "<it>"` or "I'll log it as
-deferred". Don't quietly grow the phase. Phase boundaries are fixed; iterating clarifies HOW
+this phase delivered, say so in one sentence and offer `/gsdf:auto "<it>"` (a new phase, built
+on its own), `/gsdf:quick "<it>"`, or "I'll log it as deferred". A big batch of corrections is
+still iteration — `/gsdf:auto "<them>"` does them all without stopping.
+
+Don't quietly grow the phase. Phase boundaries are fixed; iterating clarifies HOW
 this phase's work behaves, not WHETHER to add more to it.
 
 **No commits.** The tree accumulates until approve. Deliberate — but `gsdf iter log` parks a
@@ -89,5 +97,5 @@ stray `git checkout` from gone. These are stash objects, not commits: invisible 
 <success_criteria>
 - Zero subagents, zero plan files, zero commits.
 - One `gsdf iter log` line per accepted change, and no more.
-- The user can always see how to check the change themselves.
+- Every change reached the user already rebuilt, with what to try.
 </success_criteria>

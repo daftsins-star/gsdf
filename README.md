@@ -17,6 +17,10 @@ Every subagent spawn is a cold-start context that has to be paid for before it d
 so GSDF spends them where they buy isolation and nowhere else. Iterate mode — where most of the
 wall-clock in real work actually goes — spends none at all.
 
+Or let it run: with **auto mode** you answer a few plain-language questions, pick one of a few
+UI mockups, and GSDF builds every remaining phase on its own, rebuilds and installs the result,
+and hands you one finished thing to try.
+
 ## Install
 
 ```bash
@@ -62,7 +66,7 @@ because installing GitHub's copy there would quietly discard the build you are d
 `./install.sh --global` to install that tree, or `gsdf update --force` to take GitHub's anyway.
 `GSDF_REPO` and `GSDF_BRANCH` point it at a fork.
 
-## The eleven commands
+## The thirteen commands
 
 | | | Spawns |
 |---|---|---|
@@ -76,9 +80,11 @@ because installing GitHub's copy there would quietly discard the build you are d
 | `/gsdf:progress` | Where am I; `--next` runs the next step | 0 |
 | `/gsdf:pause [N]` | Write a handoff and stop — resume in a fresh session | 0 |
 | `/gsdf:resume [N]` | Restore a paused session from its handoff | 0 |
+| `/gsdf:auto ["<request>"]` | Build on its own: the rest of the roadmap, a big change, or new phases | 1 per phase + 1 per plan |
+| `/gsdf:cfg [<setting> <value>]` | See or change how GSDF behaves in this project | 0 |
 | `/gsdf:help` | The loop and the commands | 0 |
 
-`discuss` is optional. `plan` is not.
+`discuss` is optional. `plan` is not — `auto` just runs it for you.
 
 ## Iterate mode
 
@@ -87,7 +93,8 @@ This is the part worth explaining. After `/gsdf:execute`, GSDF prints how to *se
 judge. Then it waits.
 
 You say "knob's too small". It edits the file, runs the smallest verify that proves the change,
-tells you in one line how to see it, and logs:
+**rebuilds and installs** (`gsdf rebuild` — you are never handed a "run this first"), tells you in
+one line what to try, and logs:
 
 ```
 - 14:05 — Knob too small at 100% zoom → min 44px, scales with parent [ui/src/knob.css]
@@ -151,9 +158,58 @@ planner, and `/gsdf:resume` deletes it once restored so it can't go stale in som
 So a phase gsd-core executed but never UAT'd lands you in iterate mode, ready to review. A phase
 the original GSD verified is simply behind you. Both are the right answer.
 
+## Auto mode
+
+`/gsdf:new-project` asks two things before anything else: should GSDF work on its own, and
+should it talk to you in plain words (no technical questions — it decides those). Then:
+
+1. A short roadmap — at most `phases_per_milestone` phases (4), and when the project has a
+   screen, phase 1 is **2–3 UI mockups** to choose from.
+2. You pick which phases you want a say in; those are discussed up front, in one sitting.
+3. GSDF builds the mockups and **stops** — the only planned stop. Pick one, iterate on it,
+   say *approved*.
+4. Every remaining phase is planned, executed, verified and approved on its own, one commit
+   each. A check that fails gets two fix attempts before it becomes a stop.
+5. `gsdf rebuild`, then one handoff: what to try, what needs your eyes and ears.
+
+From iterate mode, `/gsdf:auto "<request>"` does the same for one request: a batch of
+corrections done in place, or new capability added as new phases and built. It works with
+`auto` off too — typing it is the go-ahead.
+
+### Settings
+
+```
+$ gsdf cfg
+auto                  on       work on its own: discuss up front, stop only at the mockups, build the rest
+plain_language        on       talk to the user as a non-programmer; never ask technical questions
+phases_per_milestone  4        how many phases a roadmap aims for
+ui_first              on       a project with a UI starts with a mockup phase
+ui_style              gsdf     UI look when the project names none (gsdf = GSDF Style Guide by Daftsins)
+research              auto     when the planner searches the web
+commit_docs           on       commit .planning/ files as they are written
+rebuild               set      rebuilds AND installs the product; runs before every 'try it'
+```
+
+`/gsdf:cfg` walks through them; `gsdf cfg <setting> <value>` sets one and refuses a bad value.
+`rebuild` is detected: for a JUCE + WebView plugin it builds the UI bundle, then the plugin, and
+JUCE's `COPY_PLUGIN_AFTER_BUILD` installs it — `gsdf rebuild` warns when that flag is missing.
+
+## The GSDF Style Guide by Daftsins
+
+UI work in a project that names no style follows the `gsdf-style` skill, installed with GSDF:
+
+- **Plugins** — black ground, bone ink, one accent per plugin, pixel display type over a mono
+  body; small windows, lots of icons, tabs when there are many features. An optional
+  **signature piece** — a picture or visualizer that reacts to the sound, posterized, pixelated
+  and gently wobbling — is offered during discuss.
+- **Apps** — translucent glass panels over the desktop.
+
+Each half ships copy-verbatim tokens, component code, a reference mockup with its screenshot,
+and a checklist Claude runs against its own screenshot before showing you anything.
+
 ## The CLI
 
-`gsdf` is ~1440 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~1550 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out. (Lines, not words, is the honest
 unit here: `bin/gsdf` is never loaded into a context window, so what the number claims is how
 much code you have to trust — not what it costs you to run.)
@@ -162,7 +218,9 @@ much code you have to trust — not what it costs you to run.)
 gsdf next                # plan 03 | execute 02 | iterate 02 | milestone-done | new-project
 gsdf phase list          # table: phase, slug, status, plans, done, iterations
 gsdf context 2           # exactly what the planner is given — ~631 tokens, not 15k
-gsdf tryit 2             # how to see the work, and what needs a human eye
+gsdf tryit 2             # what to try, and what needs a human eye
+gsdf cfg [<k> [<v>]]     # this project's settings; with a value, sets one (validated)
+gsdf rebuild             # build and install; one line on success, the tail on failure
 gsdf iter log 2 "..."    # one line per accepted change
 gsdf waves 2             # [["01"], ["02"]]
 gsdf conflicts 2         # exits 1 if two plans in one wave write the same file
@@ -180,7 +238,8 @@ gsdf lint 2              # exits 1 if a plan is not executable, naming the plan 
                          #   Also catches the two failures that are silent otherwise: a
                          #   phase with no plans at all, and a circular depends_on — which
                          #   waves() would emit as one parallel wave, the opposite of
-                         #   what those plans declared
+                         #   what those plans declared — and a Try-it that tells the
+                         #   user to build something
 gsdf update              # check GitHub, reinstall if it is ahead (--check to look only)
 gsdf bug "<one line>"    # record a GSDF bug you just hit, from any project
 gsdf bugs                # open reports, each with a stable #id
@@ -258,18 +317,18 @@ figure taken from the same real project (a JUCE gain plugin scaffolded by `/gsdf
 
 | | get-shit-done | gsd-core | GSDF |
 |---|---|---|---|
-| Commands | 29 | 72 | **11** |
+| Commands | 29 | 72 | **13** |
 | Agents | 12 | 64 | **2** |
-| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **8,058** |
-| Description text loaded every turn | 1,880 chars | 5,349 chars | **498 chars** |
+| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **10,095** |
+| Description text loaded every turn | 1,880 chars | 5,349 chars | **602 chars** |
 | Context handed to the planner | ~3,572 tokens<sup>‡</sup> | ~3,572 tokens<sup>‡</sup> | **631 tokens** |
 | Subagents per 2-plan phase | 6–8 | 6–10 | **3** |
 | Subagents during review/iteration | 1+ per fix | 1+ per fix | **0** |
 
 <sup>†</sup> Words, not lines, because the cost being compared is context and a line is a bad
 proxy for it. GSDF's markdown runs 7.2 words per line against get-shit-done's 3.6, so counting
-lines would report a 15× advantage where the honest figure is **7.7×**. Words are exact; at
-roughly 1.3 tokens per word that is ~10k tokens against ~77k and ~205k. All three counted the
+lines would report a 15× advantage where the honest figure is **5.9×**. Words are exact; at
+roughly 1.3 tokens per word that is ~13k tokens against ~77k and ~205k. All three counted the
 same way, `commands/**/*.md` + `agents/**/*.md`, on the same day.
 
 <sup>‡</sup> Both read PROJECT.md + ROADMAP.md + STATE.md + REQUIREMENTS.md (+ prior SUMMARYs) to
@@ -281,7 +340,7 @@ per-turn description tax are paid before any work happens, and the review loop �
 time goes — costs GSDF nothing at all.
 
 What the other two have that GSDF deliberately doesn't: cross-AI review, worktrees, security
-gates, UI pillars, codebase intel graphs, debug sessions, workstreams, autonomous mode. If you
+gates, UI pillars, codebase intel graphs, debug sessions, workstreams. If you
 want those, use gsd-core — it's a bigger system on purpose, and GSDF reads the same `.planning/`
 so you can run both.
 
@@ -309,8 +368,8 @@ Measured on the test fixtures:
 |---|---|
 | `gsdf context N` | **37 ms**, ~**631 tokens** (budget: 100 ms, 2,500 tokens) |
 | Subagents per 2-plan phase | **3** — one planner, two executors. Iterate and approve add none. |
-| Command descriptions, all 11 | **498 characters** total (loaded every turn; budget 550) |
-| `gsdf-executor.md` / `gsdf-planner.md` | **877** / **907** words (read at every spawn) |
+| Command descriptions, all 13 | **602 characters** total (loaded every turn; budget 650) |
+| `gsdf-executor.md` / `gsdf-planner.md` | **895** / **1145** words (read at every spawn) |
 
 **The end-to-end wall-clock comparison has not been run.** It needs a real interactive session —
 `/gsdf:new-project` through `approved` on a scratch project — which can't be produced from a
@@ -351,8 +410,9 @@ could not parse, and parallel `gsdf` writes silently losing updates.
   `~/.claude/commands/gsdf/` beats a fresh project copy. `install.sh` warns when it sees this.
 - **Permissions need a trusted workspace.** Claude Code ignores `permissions.allow` until you
   open the project interactively once and accept the trust dialog.
-- **`/gsdf:pause` and `/gsdf:resume` have not been run live yet.** They are the two newest
-  commands, covered by the conformance suite but not by the live runs above.
+- **`/gsdf:pause`, `/gsdf:resume`, `/gsdf:auto` and `/gsdf:cfg` have not been run live yet.**
+  They are covered by the conformance suite, and `gsdf cfg` / `gsdf rebuild` by the CLI tests,
+  but none of the four by the live runs above.
 - **The plan re-spawn has never fired.** `gsdf lint` and `gsdf conflicts` are proven to *detect*
   every failure they check for, but no planner output has actually failed one, so the branch that
   re-spawns the planner with the failure text is unexercised.
@@ -363,8 +423,8 @@ could not parse, and parallel `gsdf` writes silently losing updates.
 ## Tests
 
 ```bash
-bash tests/test_cli.sh          # 106 checks — CLI behaviour against 7 fixture projects
-bash tests/test_conformance.sh  # 105 checks — spawn, size and token budgets; the git protocol
+bash tests/test_cli.sh          # 296 checks — CLI behaviour against 7 fixture projects
+bash tests/test_conformance.sh  # 167 checks — spawn, size and token budgets; the git protocol
 ```
 
 `tests/fixtures/` holds two `.planning/` trees built by hand from the real templates of both

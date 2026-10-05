@@ -1,0 +1,19 @@
+/* BarSlider.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.bar-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.bar-lbl { width: 44px; flex: none; display: inline-flex; align-items: center; gap: var(--space-1); }
+.bar-val { width: 52px; flex: none; }
+
+.bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 9px;
+  background: var(--ink-hair);
+  cursor: ew-resize;
+  touch-action: none;
+}
+.bar:hover { background: var(--ink-rule); }
+.bar-fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--ink-text); pointer-events: none; }
+.bar-zero { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--ink-dim); pointer-events: none; }
+.bar-row.is-dragging .bar-fill { background: var(--ink-live); }
+.bar-row.is-dragging .bar-lbl { color: var(--ink-text); }

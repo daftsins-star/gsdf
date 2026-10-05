@@ -1,0 +1,109 @@
+/* tokens.css — GSDF Style Guide by Daftsins · plugin half.
+   Copy to ui/src/index.css. Import it in main.tsx BEFORE App (see plugin.md §2).
+   This file is the ONLY place a hex value may appear. Component CSS binds to the
+   --ink-* roles, never to a primitive, never to a raw hex.
+
+   Fonts: copy assets/plugin/fonts/* to ui/src/assets/fonts/ (OFL-1.1, bundled —
+   a plugin runs offline in a DAW, so no CDN, ever). */
+
+@font-face {
+  font-family: 'Silkscreen';
+  src: url('./assets/fonts/Silkscreen-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;   /* the pixel face never renders through a fallback, even for one frame */
+}
+@font-face {
+  font-family: 'Space Mono';
+  src: url('./assets/fonts/SpaceMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Space Mono';
+  src: url('./assets/fonts/SpaceMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* ── primitives: three colours. THE ACCENT is the one line a new plugin changes. ── */
+  --color-bg:     #000000;   /* black ground */
+  --color-bone:   #ded3bc;   /* the light ink: type, hairlines, fills */
+  --color-accent: #f08a24;   /* ONE per plugin — pick from plugin.md §3 */
+
+  /* ── the bone ladder, pre-composited on black (bone @ 1 / .65 / .40 / .16).
+       Solid colours, not alpha: the contrast declared is the contrast rendered.
+       Do not invent steps. Never put `opacity` on text or a text ancestor. ── */
+  --ink-text: #ded3bc;   /* 1.00  values, primary labels         14.2:1 */
+  --ink-dim:  #90897a;   /* 0.65  captions, secondary labels      6.1:1 */
+  --ink-rule: #59544b;   /* 0.40  hairlines, borders, empty ticks — NEVER text (2.8:1) */
+  --ink-hair: #23221e;   /* 0.16  wells, tracks, hover wash — NEVER text */
+
+  /* ── roles ── */
+  --ink-live:      var(--color-accent);   /* "on / selected / now" — a GROUND or a MARK, never text */
+  --ink-on-accent: #000000;               /* text and glyphs sitting on the accent */
+  --ink-on-bone:   #000000;               /* text and glyphs sitting on a bone fill */
+  /* An alias resolves where it is declared: if the accent is overridden on a
+     descendant, re-declare --ink-live there too. */
+
+  /* ── type ── */
+  --font-display: 'Silkscreen', 'Space Mono', ui-monospace, monospace;
+  --font-body:    'Space Mono', ui-monospace, monospace;
+
+  --text-nano:  8px;    /* version, hints */
+  --text-micro: 9px;    /* labels, buttons, tabs — the workhorse */
+  --text-xs:    10px;   /* values, panel base size, brand chip */
+  --text-sm:    11px;   /* emphasised values, modal title */
+  --text-base:  13px;   /* knob centre values */
+  --text-lg:    18px;   /* a hero read-out */
+  --text-xl:    26px;   /* one big number per screen, at most */
+  --text-2xl:   38px;   /* splash / signature overprint only */
+
+  --track-body: 0.04em; /* the panel's default */
+  --track-caps: 0.16em; /* UPPERCASE captions, buttons, tabs */
+  --track-wide: 0.22em; /* rare: a sparse section heading */
+
+  /* ── spacing: tight on purpose — the window is small ── */
+  --space-0: 2px;
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 9px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 22px;
+
+  /* ── shape: no rounded corners, no shadows, 1px lines ── */
+  --radius: 0px;
+  --hair: 1px;
+
+  /* ── the window: designed at this size, scaled as one piece (PluginCanvas) ── */
+  --panel-w: 620px;
+  --panel-h: 410px;
+  --row-mast:   22px;   /* masthead */
+  --row-tabs:   18px;   /* tab bar, when tabs are not in the masthead */
+  --row-status: 22px;   /* status strip */
+  --ctl-sm: 15px;       /* masthead / status buttons, selects */
+  --ctl-md: 18px;       /* body buttons, segments, tabs */
+  --ctl-lg: 22px;       /* text fields, modal buttons */
+  --icon:   10px;       /* one pixel-icon cell = 1px; 20px = the 2x size */
+
+  /* ── motion ── */
+  --dur-ui:   120ms;    /* the only UI transition length (opacity/colour fades) */
+  --boil-ms:  140ms;    /* signature-piece displacement frame */
+  --meter-hz: 30;       /* meters/visualisers poll rate */
+
+  /* ── grain: share of ground pixels lifted to --grain-ink (solid, no alpha) ── */
+  --grain-density: 0.055;
+  --grain-ink: #141311;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-bg);   /* same as the native editor: nothing flashes on open */
+}

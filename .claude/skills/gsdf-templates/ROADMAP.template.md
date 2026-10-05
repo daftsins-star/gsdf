@@ -15,6 +15,7 @@ One paragraph describing the journey from nothing to shipped.
 ### Phase 1: <Name>
 **Goal**: What this phase delivers, in a sentence a user would recognise.
 **Type**: ui | dsp | infra | mixed
+**Mockups**: yes — only on a look-first phase: 2–3 mockups to choose from, nothing wired
 **Depends on**: Nothing (first phase)
 **Requirements**: REQ-01, REQ-02
 **Success Criteria** (what must be TRUE):

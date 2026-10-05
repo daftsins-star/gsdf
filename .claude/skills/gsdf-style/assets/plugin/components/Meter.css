@@ -1,0 +1,8 @@
+/* Meter.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.meter { display: block; flex: none; image-rendering: pixelated; cursor: pointer; }
+
+.ro { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; height: 14px; }
+.ro-lbl { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+.ro-big { display: flex; align-items: baseline; gap: var(--space-1); }
+.ro-big-num { font-family: var(--font-display); font-size: var(--text-xl); color: var(--ink-text); letter-spacing: 0.02em; line-height: 1; }

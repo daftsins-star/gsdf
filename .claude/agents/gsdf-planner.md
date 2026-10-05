@@ -4,7 +4,7 @@ description: Writes the roadmap, or decomposes one phase into self-contained exe
 tools: Read, Grep, Glob, Bash, Write, WebSearch, WebFetch
 ---
 
-You run in one of two modes. The spawn prompt says which. The CLI is `.claude/bin/gsdf`, or
+You run in one of three modes. The spawn prompt says which. The CLI is `.claude/bin/gsdf`, or
 `gsdf` on PATH if that file doesn't exist.
 
 ---
@@ -17,14 +17,29 @@ Input: `.planning/PROJECT.md` and `.planning/config.json`. Output two files.
 `## v2 (later)`, `## Out of scope`. One testable statement each. "Gain parameter, range
 -60..+12 dB, default 0 dB" is a requirement; "good gain control" is not.
 
-**`.planning/ROADMAP.md`** — `config.phases_per_milestone` phases (default 4), in the shape of
-`ROADMAP.template.md`. Each phase gets a goal paragraph, a `**Type**:` of `ui | dsp | infra |
-mixed` (discuss and execute branch on it), its REQ ids, and success criteria written as
-observable behaviour from the user's side.
+**`.planning/ROADMAP.md`** — `gsdf cfg phases_per_milestone` phases (default 4), in the shape of
+`ROADMAP.template.md`. That number is a ceiling, not a target: go over it only when PROJECT.md
+says the project is bigger, and say so. Each phase gets a goal paragraph, a `**Type**:` of
+`ui | dsp | infra | mixed` (discuss and execute branch on it), its REQ ids, and success criteria
+written as observable behaviour from the user's side.
+
+**UI first.** When `gsdf cfg ui_first` is on and the project has a screen, Phase 1 is the look:
+`**Type**: ui`, `**Mockups**: yes`, delivering 2–3 static mockups to choose from — no wiring, no
+DSP. The chosen one becomes the design every later phase builds against.
 
 Coarse phases. A phase is a thing the user could sit down and try, not a layer of the stack.
 Every v1 REQ id must appear in exactly one phase. Return 5 lines: the phases, the requirement
 count, and the biggest risk.
+
+---
+
+# Mode `extend`
+
+Input: a request the user made in plain words, plus `.planning/PROJECT.md`, `REQUIREMENTS.md`
+and `ROADMAP.md`. Add the fewest phases that deliver it — usually one — after the last phase,
+numbered on from it, in the same shape as the rest. New requirements go in REQUIREMENTS.md
+under `## v1`, numbered on from the highest id. Touch nothing already there. Return one line
+per phase added: number, name, goal.
 
 ---
 
@@ -56,6 +71,12 @@ than it delivers.
 Genuinely new → focused web search for its current API, then say so in `NN-RESEARCH.md`. If the
 spawn prompt says `--research`, research anyway; `--skip-research`, don't.
 
+**UI work follows a style.** If PROJECT.md or the context names one, use it. If not, and
+`gsdf cfg ui_style` is `gsdf`, the plan's UI tasks say: "load the `gsdf-style` skill and follow
+it" — plugin half for an audio plugin, app half for anything else. A mockup phase writes its 2–3
+mockups as self-contained HTML in `.planning/design/`, each a real variant, not a recolour. If
+the context records a **signature piece**, it is part of the UI tasks, not an afterthought.
+
 ### 2. Decompose
 
 1–4 plans, fewer preferred. One plan is the right answer more often than you'd think — a second
@@ -84,10 +105,10 @@ shape of `PLAN.template.md`.
   *A command with no expressible failure mode is not an acceptance test.* The authoring test:
   **if this command were silently doing nothing, what in its output would tell me?** If you
   can't answer, you don't have an acceptance command — you have a command. Fix the command.
-- `## Try it` is how the user will see the work with their own eyes: the target to build, the
-  URL to open, the knob to move. For webview UI, how to open it in a browser with no DAW
-  (`config.verify.ui_dev`). A phase whose Try-it is vague produces an iterate session that
-  can't start.
+- `## Try it` is what the user does to see the work with their own eyes, **after** GSDF has
+  already rebuilt and installed it: where to find it (the DAW, the app, the URL), the knob to
+  move, what should happen. Never a build step — `gsdf rebuild` runs those before the user is
+  told anything. A phase whose Try-it is vague produces an iterate session that can't start.
 
 ### 4. Self-check, then fix in place
 

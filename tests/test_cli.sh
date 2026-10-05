@@ -661,12 +661,13 @@ is "still nothing while off" "$([ -f "$GSDF_TRACE_FILE" ] && wc -l < "$GSDF_TRAC
 "$GSDF" trace on >/dev/null
 W=$(mktemp -d); cp -R "$FIX/native-iterate" "$W/p"; cd "$W/p"
 # a correct approve sequence
-"$GSDF" lint 1 >/dev/null 2>&1; "$GSDF" tryit 1 >/dev/null 2>&1; "$GSDF" iter start 1 >/dev/null 2>&1
+"$GSDF" lint 1 >/dev/null 2>&1; "$GSDF" rebuild >/dev/null 2>&1; "$GSDF" tryit 1 >/dev/null 2>&1; "$GSDF" iter start 1 >/dev/null 2>&1
 "$GSDF" verify 1 >/dev/null 2>&1; "$GSDF" findings 1 >/dev/null 2>&1; "$GSDF" phase advance 1 >/dev/null 2>&1
 OUT=$("$GSDF" trace show)
 has "a correct run passes the verify-gate rule" "$OUT" "ok   approve ran its verify gate"
 has "and the findings rule" "$OUT" "ok   approve collated findings"
 has "and the lint rule" "$OUT" "ok   plans were linted"
+has "and the rebuild-before-handoff rule" "$OUT" "ok   rebuilt before the handoff"
 hasnt "no rule reports MISS on a correct run" "$OUT" "MISS"
 has "the call sequence itself is shown" "$OUT" "phase advance 1"
 hasnt "trace show does not record itself" "$OUT" "trace show"
@@ -805,6 +806,74 @@ W=$(printf '%s' "$OUT" | wc -w | tr -d ' ')
 has "the newest decision survives" "$OUT" "- D19:"
 has "dropped decisions are counted, not hidden" "$OUT" "older — STATE.md ## Decisions"
 has "previous phase keeps the bold claim" "$OUT" "claim 0.0"
+cd "$ROOT"; rm -rf "$T"
+
+echo "== 12q. cfg: settings are one validated table =="
+mkfx
+OUT=$("$GSDF" cfg)
+for k in auto plain_language phases_per_milestone ui_first ui_style research commit_docs rebuild; do
+  has "cfg lists $k" "$OUT" "$k"
+done
+is "auto defaults on (old or unconfigured projects)" "$("$GSDF" cfg auto)" "on"
+is "plain language defaults on" "$("$GSDF" cfg plain_language)" "on"
+is "ui_style defaults to the GSDF guide" "$("$GSDF" cfg ui_style)" "gsdf"
+"$GSDF" cfg auto no >/dev/null; is "cfg sets a bool; no is off" "$("$GSDF" cfg auto)" "off"
+"$GSDF" cfg auto on >/dev/null; is "on is on" "$("$GSDF" cfg auto)" "on"
+"$GSDF" cfg auto maybe >/dev/null 2>&1; is "a bad bool exits 1" "$?" "1"
+"$GSDF" cfg phases_per_milestone 0 >/dev/null 2>&1; is "phases 0 refused" "$?" "1"
+"$GSDF" cfg research sometimes >/dev/null 2>&1; is "a bad enum refused" "$?" "1"
+"$GSDF" cfg colour red >/dev/null 2>&1; is "an unknown setting exits 1" "$?" "1"
+"$GSDF" cfg phases_per_milestone 6 >/dev/null
+is "cfg keeps other keys" "$(python3 -c 'import json;c=json.load(open(".planning/config.json"));print(c["verify"], c["phases_per_milestone"])')" "{} 6"
+printf '{"verify":{},"auto":"yes"}' > .planning/config.json
+is "a hand-mistyped value falls back to the default" "$("$GSDF" cfg auto)" "on"
+printf '{not json' > .planning/config.json
+"$GSDF" cfg auto on >/dev/null 2>&1; is "cfg refuses to overwrite broken JSON" "$?" "1"
+is "and leaves it untouched" "$(cat .planning/config.json)" "{not json"
+cd "$ROOT"; rm -rf "$T"
+
+echo "== 12r. rebuild: detected, quiet on success, honest on failure =="
+mkfx
+mkdir ui; printf '{"scripts":{"build":"vite build"}}' > ui/package.json
+printf 'project(Foo)\njuce_add_plugin(Foo COPY_PLUGIN_AFTER_BUILD TRUE)\n' > CMakeLists.txt
+OUT=$("$GSDF" cfg)
+has "plugin rebuild builds the UI first" "$OUT" "(cd ui && npm run build) && "
+has "then configures and builds the plugin" "$OUT" "cmake --build build --config Release"
+"$GSDF" cfg rebuild "echo built > marker" >/dev/null
+OUT=$("$GSDF" rebuild); is "rebuild exits 0" "$?" "0"
+has "success is one line" "$OUT" "rebuilt and installed"
+is "it runs from the repo root" "$(cat marker)" "built"
+hasnt "no install warning when the flag is set" "$OUT" "warning"
+mkdir -p sub; cd sub; "$GSDF" rebuild >/dev/null; cd ..; is "even when called from a subdirectory" "$([ -f sub/marker ] && echo sub || echo root)" "root"
+"$GSDF" cfg rebuild "echo boom; exit 3" >/dev/null
+OUT=$("$GSDF" rebuild); is "a failed rebuild exits 1" "$?" "1"
+has "and shows the tail" "$OUT" "boom"
+has "and says FAILED" "$OUT" "rebuild FAILED (exit 3"
+printf 'project(Foo)\njuce_add_plugin(Foo)\n' > CMakeLists.txt; "$GSDF" cfg rebuild "true" >/dev/null
+has "a plugin that will not install is warned about" "$("$GSDF" rebuild)" "does not install it"
+cd "$ROOT"; rm -rf "$T"
+mkfx; printf '{"scripts":{"build":"electron-vite build"}}' > package.json
+is "an app rebuild is its npm build" "$(python3 -c 'import sys;sys.argv=["x"];exec(open("'"$GSDF"'").read().split("if __name__")[0]);print(detect(Path(".")).get("rebuild"))')" "npm run build"
+rm package.json
+"$GSDF" rebuild >/dev/null 2>&1; is "nothing to rebuild with exits 1" "$?" "1"
+cd "$ROOT"; rm -rf "$T"
+
+echo "== 12s. lint: a Try-it never tells the user to build =="
+mkfx; mkdir -p .planning/phases/01-one; plan .planning/phases/01-one/01-01-PLAN.md 01 01
+"$GSDF" lint 1 >/dev/null; is "a plain Try-it passes" "$?" "0"
+printf '## Try it\nRun cmake --build build, then open the plugin\n' >> .planning/phases/01-one/01-01-PLAN.md
+python3 - <<'PY'
+from pathlib import Path
+f = Path(".planning/phases/01-one/01-01-PLAN.md"); t = f.read_text()
+f.write_text(t.replace("## Try it\nx\n", "", 1))
+PY
+OUT=$("$GSDF" lint 1); is "a build step in Try-it fails lint" "$?" "1"
+has "and names the command" "$OUT" "cmake --build"
+plan .planning/phases/01-one/01-01-PLAN.md 01 01
+sed -i.bak 's/^x$/Make sure the knob turns, then npm run dev in ui/' .planning/phases/01-one/01-01-PLAN.md
+has "npm run dev counts too" "$("$GSDF" lint 1)" "npm run dev"
+sed -i.bak 's/^Make sure.*$/Make sure the knob turns smoothly/' .planning/phases/01-one/01-01-PLAN.md
+"$GSDF" lint 1 >/dev/null; is "the English word make does not" "$?" "0"
 cd "$ROOT"; rm -rf "$T"
 
 echo "== 13. speed (spec 10: < 100 ms per call) =="
