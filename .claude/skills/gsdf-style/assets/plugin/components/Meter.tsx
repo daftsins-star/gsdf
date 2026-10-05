@@ -1,6 +1,6 @@
 // Meter.tsx — GSDF Style Guide by Daftsins.
 //
-// Meter: a segmented level meter on a Canvas2D. 3px segments, 1px gaps, 9px thick
+// Meter: a segmented level meter on a Canvas2D. 3px segments, 1px gaps, 10px thick
 // (the BarSlider's height, so a meter and a slider line up in one column).
 //   unlit      --ink-hair
 //   lit        --ink-text
@@ -34,7 +34,7 @@ export function Meter({ getLevel, orientation = 'h', length = 120 }: {
     const ink = (n: string) => cs.getPropertyValue(n).trim();
     const hz = parseFloat(cs.getPropertyValue('--meter-hz')) || 30;
     const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
-    const along = length, across = 9;
+    const along = length, across = 10;
     const W = orientation === 'h' ? along : across;
     const H = orientation === 'h' ? across : along;
     c.width = W * dpr; c.height = H * dpr;

@@ -1,0 +1,30 @@
+/* List.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: var(--space-2); }
+.list::-webkit-scrollbar { width: 6px; }
+.list::-webkit-scrollbar-track { background: var(--ink-hair); }
+.list::-webkit-scrollbar-thumb { background: var(--ink-rule); }
+
+.li {
+  width: 100%;
+  height: var(--row-list);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) 0 var(--space-1);
+  text-align: left;
+  color: var(--ink-text);
+  font-size: var(--text-md);
+}
+.li:hover { background: var(--ink-hair); }
+.li:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--ink-dim); }
+.li-tag { width: 5px; height: 16px; flex: none; background: var(--ink-rule); }
+.li-tag--dim { background: var(--ink-dim); }
+.li-tag--text { background: var(--ink-text); }
+.li-tag--live { background: var(--ink-live); }
+.li-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.li-marker { width: 4px; height: 4px; flex: none; background: var(--ink-dim); }
+.li-code { flex: none; min-width: 18px; padding: 3px 4px; text-align: center; font-size: var(--text-sm); color: var(--ink-dim); }
+
+.li.is-selected { background: var(--ink-raised); }
+.li.is-selected .li-name { color: var(--ink-live); }
+.li.is-selected .li-code { background: var(--ink-live); color: var(--ink-on-accent); }

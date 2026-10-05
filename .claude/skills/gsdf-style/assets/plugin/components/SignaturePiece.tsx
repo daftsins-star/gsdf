@@ -5,7 +5,7 @@
 //   visualizer       <SignaturePiece source={{ kind: 'scope', getSamples }} … />
 //                    <SignaturePiece source={{ kind: 'spectrum', getBins }} … />
 //   generative shape <SignaturePiece source={{ kind: 'shape', seed: 3 }} … />
-// Sits in a hairline frame, a whole zone of the body, never behind controls or text.
+// Sits in a hairline frame (or borderless inside the Screen), never behind controls or text.
 // Labels go OUTSIDE it (a .sec-hd above), never painted into it.
 // Remounts (re-bakes) when size, cell, ramp or boil change — keep those static.
 import { useEffect, useRef } from 'react';

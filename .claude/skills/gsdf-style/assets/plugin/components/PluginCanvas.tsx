@@ -1,15 +1,22 @@
 // PluginCanvas.tsx — GSDF Style Guide by Daftsins (from alive:drums' App.tsx).
-// The panel is DESIGNED at 620x410 and SCALED AS ONE PIECE to the editor window:
-// nothing inside reflows, and nothing inside uses vw/vh (they double-count under
-// the transform). Scale = 1 at 620x410; it is floored to 2 decimals because an
-// unrounded fractional transform blurs text.
-// Keep CANVAS_W/H in step with the editor's kWidth/kHeight (PluginEditor.h) and
-// make the native window aspect-locked, resizable 0.5x .. 2.5x.
+// The panel is DESIGNED at CANVAS_W x CANVAS_H and SCALED AS ONE PIECE to the editor
+// window: nothing inside reflows, and nothing inside uses vw/vh (they double-count
+// under the transform). Scale = 1 at the design size; it is floored to 2 decimals
+// because an unrounded fractional transform blurs text.
 //
-// Also paints the ground grain: a deterministic 1-bit speckle, --grain-density of
-// ground pixels lifted to --grain-ink. Fixed hash, never Math.random: it must not
-// shimmer between repaints.
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+// Size: no fixed size — the SMALLEST window that fits the plugin without crowding
+// (alive:medium / alive:drums are 620x410; grow only when the content needs it).
+// An EXISTING plugin keeps its size. Keep CANVAS_W/H, tokens.css
+// --panel-w/h and the editor's base size in step; the native window is aspect-locked
+// and resizable (0.5x..2.5x for a new plugin; an existing one keeps its limits).
+//
+// Also mounts the HintProvider (hint-core.ts). The ground is flat black — no grain,
+// noise or specks (an earlier grain layer was removed at the user's request).
+//
+// Children, top to bottom: <Masthead/> · <TabBar/>? · <div className="body">…</div> · <StatusStrip/>?
+import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import { HintProvider } from './Hint';
 
 export const CANVAS_W = 620;
 export const CANVAS_H = 410;
@@ -27,36 +34,12 @@ export function useCanvasScale(): number {
   return s;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function paintGrain(canvas: HTMLCanvasElement): void {
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
-  canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const cs = getComputedStyle(canvas);
-  const density = parseFloat(cs.getPropertyValue('--grain-density')) || 0.055;
-  ctx.fillStyle = cs.getPropertyValue('--grain-ink').trim();
-  const cell = Math.max(1, Math.round(dpr));
-  for (let y = 0; y < h; y += cell) {
-    for (let x = 0; x < w; x += cell) {
-      let k = ((x / cell) * 374761393 + (y / cell) * 668265263) | 0;
-      k = Math.imul(k ^ (k >> 13), 1274126177);
-      k = (k ^ (k >> 16)) >>> 0;
-      if ((k % 1000) / 1000 < density) ctx.fillRect(x, y, cell, cell);
-    }
-  }
-}
-
-export default function PluginCanvas({ children, tabs = false }: { children: ReactNode; tabs?: boolean }) {
+export default function PluginCanvas({ children }: { children: ReactNode }) {
   const scale = useCanvasScale();
-  const grain = useRef<HTMLCanvasElement>(null);
-  useEffect(() => { if (grain.current) paintGrain(grain.current); }, []);
   return (
     <div className="app-stage">
-      <main className={`app-canvas${tabs ? ' app-canvas--tabs' : ''}`} style={{ transform: `scale(${scale})` }}>
-        <canvas ref={grain} className="grain" aria-hidden="true" />
-        {children}
+      <main className="app-canvas" style={{ transform: `scale(${scale})` }}>
+        <HintProvider>{children}</HintProvider>
       </main>
     </div>
   );

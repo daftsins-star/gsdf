@@ -1,0 +1,12 @@
+/* Badge.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--space-2);
+  background: var(--ink-raised);
+  color: var(--ink-dim);
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+.badge--on { background: var(--ink-live); color: var(--ink-on-accent); }

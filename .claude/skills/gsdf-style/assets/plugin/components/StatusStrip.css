@@ -1,5 +1,7 @@
 /* StatusStrip.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
 .status {
+  flex: none;
+  height: var(--row-status);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -11,4 +13,5 @@
 .status .lbl { display: inline-flex; align-items: center; gap: var(--space-1); }
 .status .val { width: 48px; }
 .st-gap { flex: 1; min-width: 0; }
-.st-msg { font-size: var(--text-nano); color: var(--ink-dim); letter-spacing: var(--track-caps); }
+.st-msg { font-size: var(--text-xs); color: var(--ink-dim); }
+.status .hint-line { flex: 1; text-align: center; }

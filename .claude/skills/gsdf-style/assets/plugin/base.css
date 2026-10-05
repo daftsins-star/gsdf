@@ -1,6 +1,6 @@
 /* base.css — GSDF Style Guide by Daftsins · plugin half.
    Copy to the top of ui/src/App.css (or import it right after index.css).
-   Resets, the stage + 620x410 canvas, shared type, the plain button.
+   Resets, the stage + canvas (flat black), shared type, the plain button, zones and section heads.
    Binds only to tokens.css roles. No hex below this line. */
 
 html, body, #root {
@@ -27,9 +27,11 @@ button {
   border-radius: var(--radius);
   cursor: pointer;
 }
+button:disabled { cursor: default; }
 :focus-visible { outline: var(--hair) solid var(--ink-dim); outline-offset: 1px; }
 
-/* ── stage + canvas: PluginCanvas.tsx scales .app-canvas as one piece ── */
+/* ── stage + canvas: PluginCanvas.tsx scales .app-canvas as one piece ──
+   The canvas is a column: masthead · (tabs) · .body · (status). Only .body flexes. */
 .app-stage {
   position: relative;
   width: 100%;
@@ -47,60 +49,75 @@ button {
   overflow: hidden;
   background: var(--color-bg);
   color: var(--ink-text);
-  font-size: var(--text-xs);
+  font-size: var(--text-md);
   text-transform: uppercase;
   letter-spacing: var(--track-body);
   line-height: 1;
-  display: grid;
-  /* masthead · (tabs) · body · status — set per plugin, keep the fixed rows */
-  grid-template-rows: var(--row-mast) minmax(0, 1fr) var(--row-status);
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
 }
-.app-canvas--tabs { grid-template-rows: var(--row-mast) var(--row-tabs) minmax(0, 1fr) var(--row-status); }
+.app-canvas > .body { flex: 1; min-height: 0; display: grid; }
 .app-canvas canvas { display: block; image-rendering: pixelated; }
 
-.grain {
-  position: absolute;
-  inset: 0;
-  width: var(--panel-w);
-  height: var(--panel-h);
-  z-index: 0;
-  pointer-events: none;
-  image-rendering: pixelated;
-}
-.app-canvas > :not(.grain):not(.modal-backdrop) { position: relative; z-index: 1; }
+/* Rows stack in the flow. The modal is excluded: it positions itself (absolute,
+   z 50), and so does the preset menu (.pm) — giving them position:relative here would
+   drop them into the flow and let them
+   escape the canvas. The ground is flat black: no grain, no noise, no texture. */
+.app-canvas > :not(.modal-backdrop):not(.pm) { position: relative; z-index: 1; }
 .app-canvas > .mh { z-index: 3; }   /* masthead menus drop over everything */
 
-/* ── shared type ── */
-.lbl  { color: var(--ink-dim);  font-size: var(--text-micro); letter-spacing: var(--track-caps); white-space: nowrap; }
-.val  { color: var(--ink-text); font-size: var(--text-xs); text-align: right; white-space: pre; font-variant-numeric: tabular-nums; }
-.num  { font-family: var(--font-display); color: var(--ink-text); font-size: var(--text-xs); letter-spacing: 0.06em; }
-.hint { color: var(--ink-dim);  font-size: var(--text-nano); letter-spacing: var(--track-caps); }
-.sec-hd { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
-.hr { height: var(--hair); background: var(--ink-rule); margin: var(--space-0) 0; flex: none; }
+/* ── shared type ──
+   Two inks do the hierarchy: labels dim, the things they label bone. */
+.lbl  { color: var(--ink-dim);  font-size: var(--text-md); white-space: nowrap; }
+.val  { color: var(--ink-text); font-size: var(--text-sm); text-align: right; white-space: pre; font-variant-numeric: tabular-nums; }
+.num  { font-family: var(--font-display); color: var(--ink-text); font-size: var(--text-md); letter-spacing: 0.06em; }
+.cap  { color: var(--ink-dim);  font-size: var(--text-md); white-space: nowrap; }   /* a section head's right-hand status */
+.now  { color: var(--ink-live); }   /* ONLY the name of the thing that is now — selected item, hint title */
 
-/* ── a region: a column of the body. Columns are split by a single hairline. ── */
-.zone { min-width: 0; min-height: 0; padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
+/* music text (icons/MusicText.tsx): case kept, accidentals are pixel glyphs */
+.music { display: inline-flex; align-items: baseline; white-space: pre; text-transform: none; }
+.music .acc { flex: none; margin: 0 1px; }
+
+/* ── zones: the body's columns, split by one hairline ── */
+.zone { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .zone + .zone { border-left: var(--hair) solid var(--ink-rule); }
+.zone-pad { padding: 0 var(--space-3); }
 
-/* ── the plain button: hairline box, bone text; ON = accent ground, black text ── */
+/* a section head: LABEL ········ status, one fixed row */
+.sec-hd {
+  flex: none;
+  height: var(--row-head);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+}
+.zone-pad .sec-hd, .sec-hd--flush { padding: 0; }
+.hr { flex: none; height: var(--hair); background: var(--ink-rule); margin: var(--space-4) 0; }
+.stack { display: flex; flex-direction: column; gap: var(--space-2); }
+.foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-3); }
+
+/* ── the plain button: a FILLED raised block (alive:medium), no border.
+      pressed / on = accent ground, black text. --line = hairline box (the presets button). ── */
 .btn {
   height: var(--ctl-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  padding: 0 var(--space-2);
-  border: var(--hair) solid var(--ink-rule);
+  padding: 0 var(--space-3);
+  background: var(--ink-raised);
   color: var(--ink-text);
-  font-size: var(--text-micro);
-  letter-spacing: var(--track-caps);
+  font-size: var(--text-md);
   white-space: nowrap;
 }
-.btn--sm { height: var(--ctl-sm); }
-.btn:hover { border-color: var(--ink-text); }
-.btn[aria-pressed="true"], .btn.on { background: var(--ink-live); border-color: var(--ink-live); color: var(--ink-on-accent); }
-.btn:disabled { color: var(--ink-dim); border-color: var(--ink-hair); cursor: default; }
+.btn--sm { height: var(--ctl-sm); padding: 0 var(--space-2); font-size: var(--text-xs); }
+.btn:hover:not(:disabled) { background: var(--ink-rule); }
+.btn[aria-pressed="true"], .btn.on { background: var(--ink-live); color: var(--ink-on-accent); }
+.btn--line { background: none; border: var(--hair) solid var(--ink-rule); }
+.btn--line:hover:not(:disabled) { background: none; border-color: var(--ink-text); }
+.btn:disabled { background: var(--ink-hair); color: var(--ink-rule); }
 
 /* ── a native select, flattened ── */
 .select {
@@ -111,8 +128,8 @@ button {
   background: var(--color-bg);
   color: var(--ink-text);
   font-family: var(--font-body);
-  font-size: var(--text-micro);
-  letter-spacing: var(--track-caps);
+  font-size: var(--text-md);
+  letter-spacing: var(--track-body);
   text-transform: uppercase;
 }
 .select:hover, .select:focus { border-color: var(--ink-text); outline: none; }

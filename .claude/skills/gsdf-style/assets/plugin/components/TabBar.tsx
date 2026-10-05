@@ -1,8 +1,8 @@
 // TabBar.tsx — GSDF Style Guide by Daftsins.
 // Pages instead of a bigger window. Each tab = pixel icon + short UPPERCASE word.
-//   placement 'row'   an 18px row under the masthead, tabs left, hairline under the row
+//   placement 'row'   a 22px row under the masthead, tabs left, hairline under the row
 //                     (use for 3..6 tabs — the default)
-//   placement 'mast'  15px hairline buttons inside the masthead (use for 2..4 tabs, as
+//   placement 'mast'  20px joined hairline buttons inside the masthead (use for 2..4 tabs, as
 //                     alive:drums' PRESETS / LIBRARY / SPACE / EDIT)
 //   selected  accent ground, black icon + text
 //   idle      --ink-dim, --ink-text on hover

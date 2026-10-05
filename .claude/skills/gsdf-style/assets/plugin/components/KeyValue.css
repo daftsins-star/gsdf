@@ -1,0 +1,8 @@
+/* KeyValue.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.kv { display: grid; grid-template-columns: 76px minmax(0, 1fr); row-gap: var(--space-4); align-items: center; }
+.kv-row { display: contents; }
+.kv-k { color: var(--ink-dim); font-size: var(--text-md); white-space: nowrap; }
+.kv-v { color: var(--ink-text); font-size: var(--text-md); line-height: 1.25; min-width: 0; display: flex; align-items: center; }
+.kv-row--dim .kv-v { color: var(--ink-dim); }
+.kv-row:hover .kv-k { color: var(--ink-text); }
+.kv.is-empty .kv-v { color: var(--ink-rule); }

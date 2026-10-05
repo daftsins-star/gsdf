@@ -36,16 +36,18 @@
   --color-bone:   #ded3bc;   /* the light ink: type, hairlines, fills */
   --color-accent: #f08a24;   /* ONE per plugin — pick from plugin.md §3 */
 
-  /* ── the bone ladder, pre-composited on black (bone @ 1 / .65 / .40 / .16).
+  /* ── the bone ladder, pre-composited on black (bone @ 1 / .65 / .40 / .26 / .16).
        Solid colours, not alpha: the contrast declared is the contrast rendered.
        Do not invent steps. Never put `opacity` on text or a text ancestor. ── */
-  --ink-text: #ded3bc;   /* 1.00  values, primary labels         14.2:1 */
-  --ink-dim:  #90897a;   /* 0.65  captions, secondary labels      6.1:1 */
-  --ink-rule: #59544b;   /* 0.40  hairlines, borders, empty ticks — NEVER text (2.8:1) */
-  --ink-hair: #23221e;   /* 0.16  wells, tracks, hover wash — NEVER text */
+  --ink-text:   #ded3bc;   /* 1.00  values, names, primary labels        14.2:1 */
+  --ink-dim:    #90897a;   /* 0.65  labels, captions, hint body           6.1:1 */
+  --ink-rule:   #59544b;   /* 0.40  hairlines, borders, struck labels — NEVER readable text (2.8:1) */
+  --ink-raised: #3a3731;   /* 0.26  filled buttons, unlit pips/cells, the selected row's ground */
+  --ink-hair:   #24221e;   /* 0.16  slider wells, hover wash, empty pips on an empty panel */
 
   /* ── roles ── */
-  --ink-live:      var(--color-accent);   /* "on / selected / now" — a GROUND or a MARK, never text */
+  --ink-live:      var(--color-accent);   /* "on / selected / now": a GROUND or a MARK, and as text
+                                             ONLY for the name of the thing that is now (plugin.md §3) */
   --ink-on-accent: #000000;               /* text and glyphs sitting on the accent */
   --ink-on-bone:   #000000;               /* text and glyphs sitting on a bone fill */
   /* An alias resolves where it is declared: if the accent is overridden on a
@@ -55,18 +57,18 @@
   --font-display: 'Silkscreen', 'Space Mono', ui-monospace, monospace;
   --font-body:    'Space Mono', ui-monospace, monospace;
 
-  --text-nano:  8px;    /* version, hints */
-  --text-micro: 9px;    /* labels, buttons, tabs — the workhorse */
-  --text-xs:    10px;   /* values, panel base size, brand chip */
-  --text-sm:    11px;   /* emphasised values, modal title */
-  --text-base:  13px;   /* knob centre values */
+  --text-nano:  8px;    /* version string */
+  --text-micro: 9px;    /* cell-row codes under a strip of cells */
+  --text-xs:    10px;   /* hint body, small segment cells */
+  --text-sm:    11px;   /* values beside a bar, list-row codes */
+  --text-md:    12px;   /* THE panel size: labels, names, buttons, rows (alive:medium) */
+  --text-base:  13px;   /* a display caption, a 800-wide panel's labels */
   --text-lg:    18px;   /* a hero read-out */
   --text-xl:    26px;   /* one big number per screen, at most */
   --text-2xl:   38px;   /* splash / signature overprint only */
 
-  --track-body: 0.04em; /* the panel's default */
-  --track-caps: 0.16em; /* UPPERCASE captions, buttons, tabs */
-  --track-wide: 0.22em; /* rare: a sparse section heading */
+  --track-body: 0.04em; /* everything — alive:medium uses no other tracking */
+  --track-caps: 0.16em; /* spaced-out caps: masthead buttons, tiny codes under cells */
 
   /* ── spacing: tight on purpose — the window is small ── */
   --space-0: 2px;
@@ -81,25 +83,30 @@
   --radius: 0px;
   --hair: 1px;
 
-  /* ── the window: designed at this size, scaled as one piece (PluginCanvas) ── */
+  /* ── the window: designed at this size, scaled as one piece (PluginCanvas).
+       No fixed size: the SMALLEST window that fits the plugin without crowding
+       (alive:medium / alive:drums are 620x410; grow only when the content needs it).
+       An existing plugin keeps its size. Change these two with CANVAS_W/H and the editor. ── */
   --panel-w: 620px;
   --panel-h: 410px;
-  --row-mast:   22px;   /* masthead */
-  --row-tabs:   18px;   /* tab bar, when tabs are not in the masthead */
-  --row-status: 22px;   /* status strip */
-  --ctl-sm: 15px;       /* masthead / status buttons, selects */
-  --ctl-md: 18px;       /* body buttons, segments, tabs */
-  --ctl-lg: 22px;       /* text fields, modal buttons */
+  --row-mast:   28px;   /* masthead */
+  --row-head:   28px;   /* a zone's section head: LABEL ········ status */
+  --row-tabs:   22px;   /* tab bar, when tabs are not in the masthead */
+  --row-status: 22px;   /* optional status strip (meters) */
+  --row-list:   26px;   /* a selectable list row */
+  --ctl-sm: 18px;       /* masthead buttons, small segments */
+  --ctl-md: 24px;       /* body buttons, segments, tabs */
+  --ctl-lg: 28px;       /* text fields, modal buttons */
+  --bar-h:  10px;       /* a bar slider's bar */
+  --pip-w:  14px;       /* a step-meter pip */
+  --pip-h:  10px;
   --icon:   10px;       /* one pixel-icon cell = 1px; 20px = the 2x size */
 
   /* ── motion ── */
   --dur-ui:   120ms;    /* the only UI transition length (opacity/colour fades) */
   --boil-ms:  140ms;    /* signature-piece displacement frame */
   --meter-hz: 30;       /* meters/visualisers poll rate */
-
-  /* ── grain: share of ground pixels lifted to --grain-ink (solid, no alpha) ── */
-  --grain-density: 0.055;
-  --grain-ink: #141311;
+  /* The ground is FLAT black: no grain, no noise, no specks, no texture. */
 }
 
 body {

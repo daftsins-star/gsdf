@@ -1,19 +1,47 @@
 /* BarSlider.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
-.bar-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.bar-lbl { width: 44px; flex: none; display: inline-flex; align-items: center; gap: var(--space-1); }
-.bar-val { width: 52px; flex: none; }
+.bar-row {
+  --bar-lbl: 40px;
+  --bar-val: 60px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  height: 16px;
+}
+.bar-lbl {
+  width: var(--bar-lbl);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink-dim);
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+.bar-val {
+  width: var(--bar-val);
+  flex: none;
+  text-align: right;
+  color: var(--ink-text);
+  font-size: var(--text-sm);
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
 
 .bar {
   position: relative;
   flex: 1;
   min-width: 0;
-  height: 9px;
+  height: var(--bar-h);
   background: var(--ink-hair);
   cursor: ew-resize;
   touch-action: none;
 }
-.bar:hover { background: var(--ink-rule); }
 .bar-fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--ink-text); pointer-events: none; }
-.bar-zero { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--ink-dim); pointer-events: none; }
+.bar-zero { position: absolute; top: -2px; bottom: -2px; width: 1px; margin-left: -1px; background: var(--ink-dim); pointer-events: none; }
+
+.bar-row:hover .bar-lbl, .bar-row.is-dragging .bar-lbl { color: var(--ink-text); }
 .bar-row.is-dragging .bar-fill { background: var(--ink-live); }
-.bar-row.is-dragging .bar-lbl { color: var(--ink-text); }
+.bar-row.is-disabled .bar { cursor: default; }
+.bar-row.is-disabled .bar-fill { background: var(--ink-rule); }
+.bar-row.is-disabled .bar-val, .bar-row.is-disabled .bar-lbl { color: var(--ink-rule); }

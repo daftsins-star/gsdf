@@ -4,27 +4,26 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 0 var(--space-3) 0 var(--space-2);
+  padding: 0 var(--space-4) 0 var(--space-3);
   color: var(--ink-dim);
-  font-size: var(--text-micro);
-  letter-spacing: var(--track-caps);
+  font-size: var(--text-md);
 }
 .tabs button:hover { color: var(--ink-text); }
 .tabs button[aria-selected="true"] { background: var(--ink-live); color: var(--ink-on-accent); }
 
-/* row: its own 18px band, separated from the body by a hairline, tabs split by hairlines */
+/* row: its own 22px band, separated from the body by a hairline, tabs split by hairlines */
 .tabs--row {
   height: var(--row-tabs);
   border-bottom: var(--hair) solid var(--ink-rule);
   padding-right: var(--space-3);
   align-items: stretch;
 }
-.tabs--row button { border-right: var(--hair) solid var(--ink-hair); }
+.tabs--row button { border-right: var(--hair) solid var(--ink-rule); }
 .tabs--row .tabs-gap { flex: 1; }
 .tabs--row > :last-child:not(button) { align-self: center; }
 
-/* mast: compact hairline buttons inside the 22px masthead */
-.tabs--mast { gap: var(--space-1); align-items: center; }
-.tabs--mast button { height: var(--ctl-sm); padding: 0 var(--space-2) 0 var(--space-1); border: var(--hair) solid var(--ink-rule); color: var(--ink-text); }
+/* mast: compact hairline buttons inside the 28px masthead */
+.tabs--mast { gap: 0; align-items: center; }
+.tabs--mast button { height: 20px; padding: 0 var(--space-2); border: var(--hair) solid var(--ink-rule); margin-left: -1px; color: var(--ink-dim); }
 .tabs--mast button:hover { border-color: var(--ink-text); }
-.tabs--mast button[aria-selected="true"] { border-color: var(--ink-live); }
+.tabs--mast button[aria-selected="true"] { border-color: var(--ink-live); position: relative; }

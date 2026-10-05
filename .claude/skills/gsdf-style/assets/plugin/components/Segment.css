@@ -7,7 +7,6 @@
   min-width: 0;
 }
 .seg button {
-  height: var(--ctl-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -15,13 +14,18 @@
   padding: 0 var(--space-1);
   background: var(--color-bg);
   color: var(--ink-dim);
-  font-size: var(--text-micro);
-  letter-spacing: var(--track-caps);
   white-space: nowrap;
   min-width: 0;
 }
-.seg button:hover { color: var(--ink-text); }
+.seg--md button { height: calc(var(--ctl-md) - 2px); font-size: var(--text-md); }
+.seg--sm button { height: calc(var(--ctl-sm) + 2px); font-size: var(--text-xs); letter-spacing: 0; }
+.seg button:hover:not(:disabled) { color: var(--ink-text); }
 .seg button[aria-checked="true"] { background: var(--ink-text); color: var(--ink-on-bone); }
+.seg button:disabled { color: var(--ink-rule); text-decoration: line-through; }
+
+.seg-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.seg-row .seg { flex: 1; }
+.seg-lbl { cursor: help; }
 
 /* Toggle = .btn (base.css) + aria-pressed; nothing extra but a fixed min width */
-.tgl { min-width: 40px; }
+.tgl { min-width: 48px; }

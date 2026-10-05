@@ -1,0 +1,8 @@
+/* Pips.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.pips { display: inline-flex; gap: 3px; flex: none; touch-action: none; }
+.pips i { width: var(--pip-w); height: var(--pip-h); background: var(--ink-raised); }
+.pips i.on { background: var(--ink-text); }
+.pips.is-empty i { background: var(--ink-hair); }
+.pips--ctl { cursor: pointer; padding: 3px 0; }
+.pips--ctl:hover i:not(.on) { background: var(--ink-rule); }
+.pips.is-held i.on { background: var(--ink-live); }

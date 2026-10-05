@@ -1,0 +1,34 @@
+/* Hint.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.hint-over {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  background: var(--color-bg);
+  border-top: var(--hair) solid var(--ink-rule);
+  color: var(--ink-text);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  pointer-events: none;
+}
+.hint-over p { margin: 0; }
+.hint-title { color: var(--ink-live); }
+.hint-preview { margin-top: var(--space-2); }
+
+.hint-line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--ink-text);
+}
+.hint-line--idle { color: var(--ink-dim); }
+
+.hint-bars { display: grid; gap: 3px; }
+.hint-bar { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 0; }
+.hint-bar i { position: relative; height: 24px; background: var(--ink-raised); }
+.hint-bar b { position: absolute; left: 0; right: 0; bottom: 0; background: var(--ink-live); }
+.hint-bar span { text-align: center; font-size: var(--text-micro); color: var(--ink-dim); }

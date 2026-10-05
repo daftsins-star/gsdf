@@ -40,8 +40,8 @@
   align-items: center;
   gap: var(--space-1);
   color: var(--ink-dim);
-  font-size: var(--text-micro);
-  letter-spacing: var(--track-caps);
+  font-size: var(--text-md);
+  letter-spacing: var(--track-body);
   white-space: nowrap;
 }
 .knob:hover .knob-lbl, .knob.is-dragging .knob-lbl { color: var(--ink-text); }

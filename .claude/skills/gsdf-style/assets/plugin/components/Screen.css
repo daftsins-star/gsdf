@@ -1,0 +1,23 @@
+/* Screen.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.screen {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border: var(--hair) solid var(--ink-rule);
+  overflow: hidden;
+}
+.screen-body { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.screen-cap {
+  position: absolute;
+  left: var(--space-4);
+  top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+.screen-title, .screen-sub { background: var(--color-bg); padding: 1px 2px; font-size: var(--text-base); white-space: nowrap; }
+.screen-title { color: var(--ink-live); }
+.screen-sub { color: var(--ink-text); }
+.screen .sig { border: 0; background: none; }

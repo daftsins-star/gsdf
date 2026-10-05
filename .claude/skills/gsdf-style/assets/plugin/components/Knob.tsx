@@ -1,4 +1,11 @@
 // Knob.tsx — GSDF Style Guide by Daftsins.
+// ── OPT-IN ONLY. Not part of the default vocabulary. ──
+// The default continuous control is BarSlider (alive:drums, alive:medium). Use this
+// knob ONLY when the user asks for knobs by name, or a project's own style guide names
+// one. Never because a control "feels like a knob", never to fill space, never for a
+// stepped parameter (that is Pips or a Segment). checklist-plugin.md fails a panel
+// with knobs nobody asked for.
+//
 // The pixel knob: a 270° ring of 2x2 square ticks (no arc stroke, no gradient,
 // no pointer cap). Filled ticks = the value; empty ticks = --ink-hair (a faint track).
 // The value sits in the middle in Silkscreen; the label sits under it.

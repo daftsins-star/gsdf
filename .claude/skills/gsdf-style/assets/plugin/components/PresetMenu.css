@@ -1,0 +1,75 @@
+/* PresetMenu.css — GSDF Style Guide by Daftsins. Roles only, no hex. */
+.pm {
+  position: absolute;
+  top: calc(var(--row-mast) - 1px);
+  left: 0;
+  z-index: 40;
+  width: 260px;
+  max-height: calc(var(--panel-h) - var(--row-mast) - var(--space-4));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  border: var(--hair) solid var(--ink-text);
+}
+.pm-hd {
+  flex: none;
+  height: var(--row-head);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-1) 0 var(--space-1);
+  border-bottom: var(--hair) solid var(--ink-rule);
+}
+.pm-cur { margin-left: var(--space-2); color: var(--ink-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-gap { flex: 1; }
+.pm-dirty { flex: none; width: 5px; height: 5px; background: var(--ink-live); }
+.pm-act {
+  flex: none;
+  width: var(--ctl-sm);
+  height: var(--ctl-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-dim);
+}
+.pm-act:hover { color: var(--ink-text); background: var(--ink-raised); }
+
+.pm-list { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-1) 0; }
+.pm-list::-webkit-scrollbar { width: 6px; }
+.pm-list::-webkit-scrollbar-track { background: var(--ink-hair); }
+.pm-list::-webkit-scrollbar-thumb { background: var(--ink-rule); }
+.pm-sec { height: 22px; display: flex; align-items: flex-end; padding: 0 var(--space-3) var(--space-1); color: var(--ink-dim); font-size: var(--text-xs); letter-spacing: var(--track-caps); }
+.pm-empty { height: var(--row-list); display: flex; align-items: center; padding: 0 var(--space-3); color: var(--ink-rule); font-size: var(--text-xs); }
+
+.pm-row { height: var(--row-list); display: flex; align-items: center; gap: var(--space-1); padding-right: var(--space-1); }
+.pm-row:hover { background: var(--ink-hair); }
+.pm-row.is-current { background: var(--ink-raised); }
+.pm-row--ask { padding: 0 var(--space-1) 0 var(--space-3); background: var(--ink-hair); }
+.pm-row--ask .pm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-load { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: var(--space-3); padding: 0 0 0 var(--space-1); text-align: left; color: var(--ink-text); }
+.pm-tag { width: 5px; height: 14px; flex: none; }
+.pm-row.is-current .pm-tag { background: var(--ink-live); }
+.pm-row.is-current .pm-name { color: var(--ink-live); }
+.pm-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-row .pm-act { visibility: hidden; }
+.pm-row:hover .pm-act { visibility: visible; }
+
+.pm-save { flex: none; display: flex; gap: var(--space-1); padding: var(--space-2); border-top: var(--hair) solid var(--ink-rule); }
+.pm-field {
+  flex: 1;
+  min-width: 0;
+  height: var(--ctl-sm);
+  padding: 0 var(--space-2);
+  border: var(--hair) solid var(--ink-rule);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--ink-text);
+  font: inherit;
+  font-size: var(--text-md);
+  letter-spacing: var(--track-body);
+  text-transform: uppercase;
+  outline: none;
+}
+.pm-field:focus { border-color: var(--ink-text); }
+.pm-field::placeholder { color: var(--ink-dim); }
+.pm-err { padding: 0 var(--space-2) var(--space-2); color: var(--ink-text); font-size: var(--text-xs); line-height: 1.35; text-transform: none; }

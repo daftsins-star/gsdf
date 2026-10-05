@@ -10,7 +10,7 @@
   justify-content: center;
 }
 .modal-dialog {
-  width: 280px;
+  width: 300px;
   padding: var(--space-5);
   border: var(--hair) solid var(--ink-text);
   background: var(--color-bg);
@@ -18,7 +18,7 @@
   flex-direction: column;
   gap: var(--space-3);
 }
-.modal-message { font-family: var(--font-display); font-size: var(--text-sm); color: var(--ink-text); letter-spacing: 0.06em; }
-.modal-sub { font-size: var(--text-micro); color: var(--ink-dim); text-transform: none; letter-spacing: var(--track-body); line-height: 1.4; }
+.modal-message { font-family: var(--font-display); font-size: var(--text-md); color: var(--ink-text); letter-spacing: 0.06em; }
+.modal-sub { font-size: var(--text-sm); color: var(--ink-dim); text-transform: none; letter-spacing: var(--track-body); line-height: 1.4; }
 .modal-actions { display: flex; gap: var(--space-1); }
 .modal-actions .btn { flex: 1; height: var(--ctl-lg); }

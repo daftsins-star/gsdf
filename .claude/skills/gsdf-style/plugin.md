@@ -1,135 +1,136 @@
 # GSDF Style Guide by Daftsins — plugins
 
-The default look for an audio-plugin GUI (JUCE + React WebView) whose project names no other style. Derived from the code of two shipped plugins, alive:medium and alive:drums. The code in `assets/plugin/` is the spec; this page says how to use it. Look at `assets/plugin/reference-mockup.png` first — that is the target.
+The default look for an audio-plugin GUI (JUCE + React WebView) whose project names no other style. It is **alive:medium's layout, refinement and hints in alive:drums' colours and masthead**. The code in `assets/plugin/` is the spec; this page says how to use it. Look at `assets/plugin/reference-mockup.png` first — that is the target.
 
 ## 1. Identity
 
-A small black instrument panel printed in one bone ink. Pixel type for names and numbers, mono type for everything else, everything UPPERCASE. 1px hairlines split the panel into zones; nothing is rounded, nothing casts a shadow, nothing has a gradient. Hierarchy comes from four fixed steps of the bone ink, not from size or weight. Each plugin claims exactly one accent colour, and the accent only ever means "on / selected / now" — it is a ground or a mark, never text. Small pixel icons sit beside nearly every label. Test equipment with a screen-printed faceplate: dense, quiet, exact.
+A small, flat black instrument panel printed in one bone ink, with one accent. Calm, readable 12px mono type, everything UPPERCASE. 1px hairlines split the panel into columns; nothing is rounded, nothing casts a shadow, nothing has a gradient, the ground has no texture. Hierarchy comes from two inks — labels dim, the things they label bone — and from air: rows are generous, sections breathe. Controls are flat: bars, pips, joined cells, filled blocks. The panel **explains itself**: every control announces what it does in the hint slot while you point at it.
 
 ## 2. Files to copy, and where
 
 | From `assets/plugin/` | To `ui/src/` | Notes |
 |---|---|---|
-| `tokens.css` | `index.css` | :root tokens + @font-face. Change only `--color-accent`. |
-| `base.css` | top of `App.css` | resets, stage/canvas, shared type, `.btn`, `.select`, `.zone` |
+| `tokens.css` | `index.css` | :root tokens + @font-face. Change only `--color-accent` (and the panel size). |
+| `base.css` | top of `App.css` | resets, canvas, `.zone`, `.sec-hd`, `.lbl/.val/.cap`, `.btn`, `.select` |
 | `fonts/*.woff2`, `fonts/OFL.txt` | `assets/fonts/` | OFL-1.1; ship `OFL.txt`, list them in third-party notices |
-| `components/*` | `components/` | each `.tsx` imports its own `.css` |
-| `icons/*` | `icons/` | `pixel-icons.ts` + `Icon.tsx` |
+| `components/*` | `components/` | each `.tsx` imports its own `.css`; `hint-core.ts` + `Hint.tsx` are one unit |
+| `icons/*` | `icons/` | `pixel-icons.ts`, `Icon.tsx`, `MusicText.tsx` |
 
-`main.tsx` must `import './index.css'` **before** `import App from './App'`. Without it tokens and fonts are never bundled and the UI silently falls back to system fonts — it still builds, so nothing warns you. Fonts are bundled, never fetched: a plugin runs offline.
+`main.tsx` must `import './index.css'` **before** `import App from './App'`, or tokens and fonts are never bundled and the UI silently falls back to system fonts. Fonts are bundled, never fetched: a plugin runs offline.
 
-Components are bridge-agnostic: continuous controls take a normalised `value` (0..1) plus `onBegin / onChange / onEnd`. Wire them to the JUCE bridge as `beginGesture / setParam / endGesture`. `onChange` already fires at most once per animation frame; if the bridge still floods, pass `commitOnly` (one `setParam` on release, as alive:drums does). Always repaint from the host value when not dragging, so automation is visible.
+Components are bridge-agnostic: continuous controls take a normalised `value` (0..1) plus `onBegin / onChange / onEnd`; wire them to `beginGesture / setParam / endGesture`. `onChange` fires at most once per frame; if the bridge still floods, pass `commitOnly`. Repaint from the host value when not dragging, so automation shows.
 
-## 3. Tokens and colour
+## 3. Colour
 
-Read `tokens.css`; it is commented line by line. The system:
+Read `tokens.css`; it is commented line by line.
 
-- **Three primitives**: `--color-bg #000000`, `--color-bone #ded3bc`, `--color-accent`. Nothing else is a colour.
-- **The bone ladder**, pre-composited on black so declared contrast = rendered contrast: `--ink-text` (1.0), `--ink-dim` (0.65), `--ink-rule` (0.40, hairlines only), `--ink-hair` (0.16, wells/tracks/hover wash only). Rule and hair are never text. Never use `opacity` on text or a text ancestor — pick a step.
-- **Roles**: `--ink-live` = the accent. `--ink-on-accent` and `--ink-on-bone` = black. Text on an accent or bone fill is always black, never white.
-- **Two kinds of "selected"**: an option chosen among siblings (segment cell) is a **bone** ground; a state that is on or live (toggle, tab, bypass, armed, brand chip, peak) is an **accent** ground.
-- Component CSS uses `var(--…)` only; a raw hex outside `tokens.css` is a bug.
+- **Three primitives**: `--color-bg #000000`, `--color-bone #ded3bc`, `--color-accent`. Nothing else is a colour. The ground is **flat black — no grain, noise, specks or texture**.
+- **The bone ladder**, pre-composited on black: `--ink-text` (1.0), `--ink-dim` (0.65), `--ink-rule` (0.40, hairlines and struck/disabled labels only), `--ink-raised` (0.26, filled buttons, unlit pips/cells, the selected row), `--ink-hair` (0.16, slider wells, hover wash). Never `opacity` on text — pick a step.
+- **Accent = "on / selected / now"**: the brand block, a pressed toggle or header button, the LOADED badge, a lit cell, a dragging fill. As **text** only for the *name of the thing that is now*: the selected list row's name, the Screen's caption, the hint title (`.now`). Never for labels, values or sentences. Text on accent or bone is black.
+- **Two kinds of selected**: a choice among siblings (segment cell) is a **bone** ground; an on/live state is an **accent** ground.
+- A raw hex outside `tokens.css` is a bug.
 
-**Accent list** — pick one per plugin, never two. All carry black text at ≥ 5:1 and read as distinct from bone.
+**Accent list** — one per plugin. All carry black text at ≥ 5:1 and read as distinct from bone.
 
-| Name | Hex | Black on it | vs bone | Note |
-|---|---|---|---|---|
-| Orange | `#f08a24` | 8.4:1 | 1.7:1 | alive:drums. Default in tokens.css |
-| Olive | `#7a8761` | 5.5:1 | 2.6:1 | alive:medium. Quiet; best for subtle tools |
-| Vermilion | `#e2553a` | 5.6:1 | 2.5:1 | loud; avoid on anything that also shows clipping |
-| Teal | `#3fa394` | 6.9:1 | 2.1:1 | cool, technical |
-| Sky | `#7ea7d8` | 8.4:1 | 1.7:1 | soft; good for reverbs/space |
-| Rose | `#d67f93` | 7.3:1 | 1.9:1 | warm, characterful |
-| Lilac | `#9f8bd0` | 7.1:1 | 2.0:1 | dreamy, modulation |
-| Mint | `#6fc29a` | 9.9:1 | 1.4:1 | bright; keep fills small |
+| Name | Hex | Note |
+|---|---|---|
+| Orange | `#f08a24` | alive:drums. The default |
+| Olive | `#7a8761` | alive:medium. Quiet |
+| Vermilion | `#e2553a` | loud; not on anything that shows clipping |
+| Teal | `#3fa394` | cool, technical |
+| Sky | `#7ea7d8` | reverbs, space |
+| Rose | `#d67f93` | warm, characterful |
+| Lilac | `#9f8bd0` | dreamy, modulation |
+| Mint | `#6fc29a` | bright; keep fills small |
 
 Rejected: yellows (merge with bone), acid green, pure red (reads as error), white.
 
 ## 4. Type
 
-- `--font-display` **Silkscreen** (pixel face): the brand chip, knob values, big read-outs, slot/section numerals. Never sentences.
-- `--font-body` **Space Mono**: every label, button, tab, value row, hint. 700 only where two labels must separate.
-- Scale (px): nano 8 · micro 9 · xs 10 · sm 11 · base 13 · lg 18 · xl 26 · 2xl 38. No other sizes. The canvas base is xs/10px, uppercase, `--track-body` 0.04em, line-height 1.
-- Labels/buttons/tabs: micro 9px, `--track-caps` 0.16em, `--ink-dim` (labels) or `--ink-text` (buttons). Values: xs 10px `--ink-text`, tabular. Hints: nano 8px `--ink-dim`.
-- One `--text-xl` number per screen at most (`BigReadout`). Units go after values in `.lbl` style, never in the display face.
-- **Case that carries meaning stays as written** — chord names (Cm7 ≠ CM7), roman numerals (i ≠ I), units like dB/Hz/ms. Silkscreen has no lowercase, so set these in Space Mono without `text-transform`. Neither face has ♭ ♯ ♮ (they fall back to a system font): render music text through `icons/MusicText.tsx`, which draws them as pixel glyphs in the icon style.
+- `--font-body` **Space Mono** for everything: names, labels, values, buttons, hints, the brand block.
+- `--font-display` **Silkscreen** (pixel) only for an optional big read-out (`BigReadout`) or a numeral that wants it. Never sentences, never the masthead.
+- Scale (px): nano 8 · micro 9 · xs 10 · sm 11 · **md 12** · base 13 · lg 18 · xl 26 · 2xl 38. The canvas base is md 12, `--track-body` 0.04em, line-height 1. Labels and names md; values beside bars sm; hint body xs at line-height 1.35; codes under cells micro with `--track-caps`. Masthead buttons xs with `--track-caps` (0.16em) — spaced out.
+- One `--text-xl` number per screen at most. Units glue onto values (`+3.0DB`, `35%`).
+- **Case that carries meaning stays as written** — chord names (Cm7 ≠ CM7), roman numerals (i ≠ I), units like dB/Hz/ms: no `text-transform` on those. Neither face has ♭ ♯ ♮: render music text through `icons/MusicText.tsx`.
 
-## 5. Layout, window, density, tabs
+## 5. Layout and window
 
-- **Window**: design at **620 × 410** (alive:medium and alive:drums both ship this). Acceptable range for a new plugin 560–720 wide at the same ~3:2; if it doesn't fit, add a tab, don't grow the window. Native editor: aspect-locked, resizable 0.5×–2.5× (310×205 … 1550×1025). `PluginCanvas` scales the whole panel as one piece; nothing inside reflows, and nothing inside uses vw/vh.
-- **Rows**: masthead 22px · optional tab row 18px · body · status strip 22px. Fixed heights (`--row-*`).
-- **Body**: 2–3 vertical `.zone`s split by one `--ink-rule` hairline. Zone padding 6/9px, internal gap 4px. Inside a zone, sections are a `.sec-hd` (label left, hint right) and separated by `.hr`. Typical columns: 170–190 / fill / 170–180.
-- **Density**: tight. Control heights 15 / 18 / 22px, gaps from the 2-4-6-9-12-16-22 scale. No empty card padding; empty space in a zone means the content belongs in fewer zones or the window is too big.
-- **Grain**: the ground carries a fixed 1-bit speckle (`paintGrain`, density 0.055). Leave it on.
-- **Tabs**: when a plugin has more than one feature group — or the controls don't fit 620×410 at these sizes — use `TabBar`, never a bigger window. `placement="row"` (18px row, 3–6 tabs, icon + word, hairline-separated, selected = accent ground, optional right-hand status) is the default (pass `tabs` to `PluginCanvas` to add the row); `placement="mast"` (15px hairline buttons in the masthead) for 2–4 modes/surfaces. Masthead, status strip and any global I/O stay outside the tabs. Keep the selected tab in plugin state.
+- **Window: as small as fits.** No fixed size: use the smallest window that holds the plugin without crowding, and grow only when the content needs it. alive:medium and alive:drums are 620×410 (the template's size); a bigger instrument may need ~800×520. An **existing plugin keeps its size**. `PluginCanvas` scales the panel as one piece (aspect-locked, resizable); keep `CANVAS_W/H`, `--panel-w/h` and the editor's base size in step. Nothing inside uses vw/vh.
+- **Rows**: masthead 28px · optional tab row 22px · `.body` · optional status strip 22px. alive:medium has no status strip — add one only for meters or when there is no Screen.
+- **Body = columns** split by single hairlines (`.zone`). The alive:medium arrangement is the default: a **list** of things to load (~140px) · the **Screen** with the live controls under it (fills) · an **inspector** (~175px) whose action buttons pin to the bottom (`.foot`). Each column starts with a `.sec-hd` (28px: LABEL left, status or `Badge` right). Inner padding 9px; sections separated by `.hr` (12px air either side).
+- **Density: Medium, not cramped.** List rows 26px, segments and buttons 24px, key/value rows with 12px gaps, bars 10px. If it doesn't fit, add a tab — don't shrink the type.
+- **Tabs** for more than one feature group: `TabBar` (`placement="row"`, 22px), or masthead header buttons that swap a surface (as alive:drums' LIBRARY / SPACE / EDIT).
 
 ## 6. Controls
 
-Every control: hairline (`--ink-rule`) at rest, `--ink-text` border on hover, accent while live. No transitions on hover.
+Every control is flat; hover lifts its label to bone; dragging turns its fill accent. No hover transitions.
 
-| Control | File | States |
+| Control | File | Use and states |
 |---|---|---|
-| Knob | `Knob.tsx` | 270° ring of 2×2 ticks; lit `--ink-text`, unlit `--ink-hair` (hover `--ink-rule`); dragging lights accent. Value in Silkscreen inside, label + icon under. Sizes 26 / 34 / 44 only; one row of 44s for the main controls, 34s for the rest. Bipolar fills from top-centre. |
-| Bar slider | `BarSlider.tsx` | `LABEL [9px bar] VALUE`. Well `--ink-hair` (hover `--ink-rule`), fill bone, accent while dragging; bipolar gets a 1px `--ink-dim` zero tick. Press jumps, Shift = fine. Prefer it in dense side columns. |
-| Shared drag | `useParamDrag.ts` | knob vertical (160px = full range), bar horizontal; Shift ×0.1; double-click = default; wheel = 1% step. |
-| Segment | `Segment.tsx` | joined cells, 1px rule gaps; off `--ink-dim`, chosen = bone ground/black text. 2–8 options; more is a `.select`. |
-| Toggle | `Segment.tsx` → `Toggle` | `.btn`; pressed = accent ground, black icon + text. Always icon + word. |
-| Icon button | `IconButton.tsx` | 15px (sm) or 18px (md) square; `pressed` = accent ground; `bare` = no box, `--ink-dim` → `--ink-text` (masthead utilities). Always a `title`. |
-| Masthead | `Masthead.tsx` | brand chip (accent ground, Silkscreen, black, full row height; `MAKER:PRODUCT` or `PRODUCT`), preset button (list icon + name + caret), mode buttons, spacer, bare utilities (undo, redo, A/B, randomise), bypass as a pressed-able power IconButton, version (nano, lowercase v), menu. |
-| Tab bar | `TabBar.tsx` | see §5. |
-| Meter | `Meter.tsx` | Canvas, 3px segments / 1px gaps, 9px thick; lit bone, unlit hair, peak-hold accent (1s), over-0dB latch accent until clicked. 30Hz, paused when hidden. dB value as HTML `.val` beside it. |
-| Read-outs | `Meter.tsx` → `Readout`, `BigReadout` | label/value rows with icon; one big Silkscreen number per screen. |
-| Status strip | `StatusStrip.tsx` | 22px bottom row: IN meter · message (nano, dim) · OUT meter. |
-| Modal | `Modal.tsx` | solid black over the canvas (no veil), 280px box, 1px bone border, Silkscreen title, the confirm button is the only accent. Render inside the canvas. |
-| Canvas | `PluginCanvas.tsx` | stage, scale, grain. |
+| **Bar slider** | `BarSlider.tsx` | **The** continuous control. `LABEL [10px bar] VALUE`: dim label in a fixed column, `--ink-hair` well, bone fill (bipolar fills from a 1px dim centre hairline that pokes out 2px), value right-aligned. Press jumps, Shift fine, double-click resets, wheel steps. Stack in a `.stack`; set `--bar-lbl/--bar-val` per group. |
+| **Pips** | `Pips.tsx` | 5-pip step meter (14×10 blocks). Read-only rating, or with `onChange` a stepped control (press/drag a pip, one wheel notch = one step). |
+| Segment | `Segment.tsx` | joined cells, 1px rule gaps; off dim, chosen = bone ground/black. `size="sm"` + `label` for a compact row (`SUPPLY [REG STK TRD FAIL]`). Each option carries its own hint. |
+| Toggle | `Segment.tsx` → `Toggle` | filled `.btn`; pressed = accent ground. Icon + word. |
+| **Cell row** | `CellRow.tsx` | N cells with 3-letter codes under them — what is running. on = raised cell (a bone fill brightens with live `level`), lit = accent, off = hair cell with the code struck through (disabled; the hint says why). |
+| **Key/value** | `KeyValue.tsx` | inspector facts: dim key, bone value (any node — Pips, text). |
+| **List** | `List.tsx` | selectable rows: 5px tag · name · marker · code. Selected = raised ground, accent name, code on an accent chip. Up/Down keys; right-click → `onContext`. |
+| **Badge** | `Badge.tsx` | LOADED / EMPTY state chip in a section head. |
+| **Screen** | `Screen.tsx` | the hero frame: accent caption + bone sub-line, the picture, and the hint overlay. One per panel. |
+| Buttons | `.btn`, `IconButton.tsx` | filled `--ink-raised` blocks (24px; 18px `sm`), hover `--ink-rule`; pressed = accent. `bare` icons for masthead utilities. Always a `title` on icon-only. |
+| Masthead | `Masthead.tsx` | see below. |
+| Meter | `Meter.tsx` | segmented canvas meter, bone with an accent peak; `Readout`, `BigReadout`. |
+| Modal | `Modal.tsx` | solid black over the canvas, 1px bone box, the confirm button is the only accent. |
+| Canvas | `PluginCanvas.tsx` | stage, scale, HintProvider. |
+| Knob | `Knob.tsx` | **opt-in only** — see below. |
 
-Text inputs and selects use `.select` / a 22px field with a rule border; focus = `--ink-text` border, no glow. Canvases never contain text.
+**Masthead** (alive:drums): the accent **brand block is flush with the panel's top-left corner** — it touches the top and left edges and fills the masthead's full height (never an inset chip) — with the product name in black Space Mono. **PRESETS ▾ is always the first item after it** (current preset name, ellipsised; the preset menu is `PresetMenu.tsx`). Then the outlined 20px header buttons (`buttons`: surfaces/modes like LIBRARY, SPACE, EDIT — 1px rule box, spaced-out caps, 6px gaps; pressed = accent). Spacer, then `right` (seed, bare utilities), version (dim, lowercase v), menu. A plugin without presets leaves the slot empty — never a dead button.
 
-## 7. Icons
+**Knobs are not in the vocabulary.** The dotted tick-ring `Knob` exists only for a user who asks for knobs by name. Continuous = `BarSlider`; stepped = `Pips`, `Segment` or a stepped `BarSlider` (`steps`).
 
-Icons are ours: `icons/pixel-icons.ts` (54 glyphs, original to this guide, no licence attached). Rules for using and adding:
+**Stepped parameters**: pass `steps` (number of positions) to `BarSlider`/`useParamDrag` — the value snaps, `onChange` fires only on a step change, and **one wheel notch = one step** (`useWheelSteps` also tames trackpad bursts).
 
-- **Grid**: 10×10, 1-bit, one cell = one CSS px. Render at 10px (1×) or 20px (2×) only. `shape-rendering: crispEdges`, `fill: currentColor`.
-- **Drawing**: 1-cell lines, solid masses with cut-outs (dice, lock), no diagonals thinner than a stair-step, no curves, at least one row or column of air. Add a new icon by drawing ten strings of ten `#`/`.` — `Icon.tsx` turns it into one path. Never pull icons from an outside set (they are stroked, anti-aliased, and off-grid).
-- **Use lots of them**: every tab, toggle, knob label, bar-slider label, read-out and utility gets one. Icon + word is the default; icon-only is for well-known utilities (undo, redo, A/B, randomise, bypass, menu, save, load, copy, delete) and always carries a `title`.
-- Colour follows the text: dim beside a dim label, black on an accent ground. Never colour an icon accent on black.
+## 7. Hints — every control announces itself
 
-## 8. Signature piece (optional — ask)
+From alive:medium's deck caption. `PluginCanvas` mounts a `HintProvider`; the `Screen` hosts the slot (`<HintSlot/>`, or `<HintSlot variant="line"/>` in a status strip when there is no Screen).
 
-One crunchy, audio-reactive picture can give a plugin its face. It is **optional**: during design, ask the user — "Should this plugin have a signature piece? (a) an image that reacts to the audio, (b) a visualizer — scope or spectrum — drawn in the same crunch, (c) a generative shape, (d) none." Recommend (d) for utilities. Never add one unasked.
+- Hovering or focusing any control shows **`TITLE · VALUE` + one plain sentence** about what it does *to the sound*, in a black panel sliding over the Screen's bottom edge (title in the accent, sentence in bone). Nothing hovered → no overlay.
+- Sliders put their **live value** in the title, and keep the slot through a drag.
+- **Choices hint the option under the pointer**, not the control: hovering FAIL says what a failing supply does before the click. A list row can add a **preview** (`HintBars`: what loading it would set). Disabled cells say *why* they are off.
+- Wire it with `hint` props (`BarSlider hint="…"`, `Segment` options' `hint`, `List` items' `hint`, `CellRow` cells' `hint`) or `useHint()` on your own element. Write hints like alive:medium's: short, concrete, about the sound, no UI jargon.
 
-`components/SignaturePiece.tsx` + `signature-core.ts` (Canvas2D, no WebGL), from sineTune's MOUTHPIECE technique re-coloured into this palette:
+## 8. Icons
 
-1. draw the source into a tiny buffer (CSS size ÷ `cell`; cell 2–4, default 3) — the smallness is the pixel crunch;
-2. posterize luminance to 4 flat inks — `ramp="bone"` (black/hair/dim/bone, default) or `ramp="accent"` (black/rule/accent/bone, when the piece is the plugin's hero);
-3. **boil**: displace by one of 3 pre-baked noise maps, swapped every 140ms (`--boil-ms`). Never regenerate noise per frame;
-4. upscale with `image-rendering: pixelated`.
+`icons/pixel-icons.ts` (10×10, 1-bit, ours). Render at 10 or 20px, `crispEdges`, `currentColor`. Draw new ones on the grid (ten strings of ten `#`/`.`); never import an outside set, emoji or unicode arrows.
 
-Variants: `source={{kind:'image', image, width, height}}` (cover-fit, zooms ≤10% and brightens with level), `{kind:'scope', getSamples}`, `{kind:'spectrum', getBins}`, `{kind:'shape', seed}`. `getLevel()` returns a smoothed 0..1 level. Fit: one per plugin, in a hairline frame, occupying a zone section (square is safest), labels outside it in a `.sec-hd`. Only the piece crunches: a whole-UI boil/pixelate pass was tried in sineTune and rejected — it destroys legibility. Images must be ours, public domain, or licensed for the product.
+Use them on **buttons, toggles, tabs and utilities** (icon + word, or icon-only with a `title` for the standard utilities: undo, redo, A/B, random, bypass, menu, settings). **Not** before slider labels, key/value keys or section heads — a clean column of words reads calmer (alive:medium). Icons follow the text colour; never an accent icon on black.
 
-## 9. Motion
+## 9. Signature piece (optional — ask)
 
-- Hover/press state changes are instant. `--dur-ui` (120ms) only for fading an indicator in/out.
-- No springs, no slides, no blinking (an armed state is a static inverted field), no spinners (loading = a static centred mark).
-- Meters/visualizers 30Hz, signature boil ~7fps, its source ≤30fps; all stop when the editor is hidden.
+During design, ask: "Should this plugin have a signature piece? (a) an image that reacts to the audio, (b) a scope or spectrum in the same crunch, (c) a generative shape, (d) none." Recommend (d) for utilities. Never add one unasked.
 
-## 10. Don'ts
+`SignaturePiece.tsx` + `signature-core.ts` (Canvas2D): the source drawn tiny (`cell` 2–4), posterized to 4 flat inks (`ramp="bone"` default, `"accent"` when it is the hero), boiled by 3 pre-baked noise maps swapped every 140ms, upscaled pixelated. Variants: `image`, `scope`, `spectrum`, `shape`. It lives **inside the Screen** (borderless) or in its own hairline frame. Only the piece crunches — never text or controls. Images must be ours, public domain, or licensed.
 
-- No raw hex outside `tokens.css`; no `opacity` on text; no `--ink-rule`/`--ink-hair` text.
-- No second accent, no accent text, no white text on a fill.
-- No border-radius, shadows, gradients, blur, glass, or outer glows.
-- No fonts other than Silkscreen + Space Mono; no CDN; no lowercase labels (version string excepted).
-- No sizes off the type, spacing, control or knob scales.
-- No icon fonts, emoji, or unicode arrows as icons (they fall back to system fonts) — use `Icon`.
-- No window bigger than ~720×480 to fit features — tab instead.
-- No crunch/boil on text or controls.
+## 10. Motion
 
-## 11. Starting a new plugin
+Hover/press changes are instant; `--dur-ui` (120ms) only to fade an indicator. No springs, slides, blinking or spinners. Meters 30Hz, cell activity ~12–30Hz, boil ~7fps; all stop when the editor is hidden.
 
-1. Copy the files in §2. Add the `index.css` import to `main.tsx` before App.
-2. Ask the user for the accent (offer §3's list with a recommendation, and accept their own hex if it passes black-on-it ≥ 4.5:1); set `--color-accent`.
-3. Ask whether it wants a signature piece (§8), and which variant.
-4. List the controls; group them. More than one group, or not fitting 620×410 → plan tabs (§5).
-5. Build `PluginCanvas` → `Masthead` → `TabBar` (if any) → zones → `StatusStrip`, using only the components. Put plugin layout (grid columns, zone order) in `App.css` with tokens only — see `reference-mockup.tsx` for a complete composition.
-6. Give every control an icon (§7); draw new glyphs on the 10×10 grid as needed.
-7. Screenshot at 620×410, device scale 2 (`"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --hide-scrollbars --force-device-scale-factor=2 --virtual-time-budget=3000 --window-size=620,410 --screenshot=out.png <url>`), run `checklist-plugin.md` against it, fix, repeat — then show the user.
+## 11. Don'ts
+
+- No raw hex outside `tokens.css`; no `opacity` on text; no `--ink-rule`/`--ink-hair` for readable text.
+- No second accent; accent text only for the "now" name; no white text.
+- No grain, noise, specks or texture on the ground.
+- No border-radius, shadows, gradients, blur or glows.
+- No tick-ring knobs unless the user asked for knobs.
+- No inset/floating brand chip; no PRESETS button anywhere but first after the brand.
+- No fonts but Space Mono (+ Silkscreen for an optional big number); no CDN; no lowercase labels (version and meaningful case excepted).
+- No control without a hint.
+- No window bigger than the content needs.
+
+## 12. Starting a new plugin
+
+1. Copy the files in §2; import `index.css` first in `main.tsx`.
+2. Ask for the accent (§3; accept their own hex if black-on-it ≥ 4.5:1).
+3. Ask about a signature piece (§9).
+4. List the controls; decide the columns (list · Screen · inspector, or fewer), the smallest window that fits (§5), and tabs if needed.
+5. Compose `PluginCanvas` → `Masthead` → `.body` of `.zone`s → optional `StatusStrip`, from the components only (`reference-mockup.tsx` is a complete composition). Write a hint for every control.
+6. Screenshot at the design size, scale 2 (`"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --hide-scrollbars --force-device-scale-factor=2 --virtual-time-budget=3000 --window-size=W,H --screenshot=out.png <url>`), once plain and once with a hint showing; run `checklist-plugin.md`, fix, repeat — then show the user.
