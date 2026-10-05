@@ -103,6 +103,36 @@ dst.write_text(json.dumps(cur, indent=2) + "\n")
 print("  settings.json: %d permission(s) added, %d already present" % (len(new), len(add) - len(new)))
 PY
 
+# --- status line + update check (global install only) ---
+# The status line is one setting shared by every tool, so it is only taken over when it is
+# unset, already GSDF's, or GSD's (which GSDF replaces); anything else is left alone and the
+# one-line way to switch is printed. The previous value is kept so it can be put back.
+if [ "$GLOBAL" = 1 ]; then
+python3 - "$DEST/settings.json" "$DEST/bin/gsdf" <<'PY'
+import sys, json, pathlib
+dst, cli = pathlib.Path(sys.argv[1]), sys.argv[2]
+try: cur = json.loads(dst.read_text())
+except Exception: cur = {}
+sl = {"type": "command", "command": '"%s" statusline' % cli}
+old = cur.get("statusLine") or {}
+oc = old.get("command", "") if isinstance(old, dict) else ""
+if not oc or "gsd-statusline" in oc or "gsdf" in oc:
+    if oc and "gsdf" not in oc:
+        (dst.parent / "gsdf-statusline.previous.json").write_text(json.dumps(old, indent=2) + "\n")
+    cur["statusLine"] = sl
+    print("  status line: GSDF's" + (" (replaced GSD's; previous kept in gsdf-statusline.previous.json)" if oc and "gsdf" not in oc else ""))
+else:
+    print("  status line: left as is (yours). To use GSDF's, set statusLine.command to:\n      %s" % sl["command"])
+hooks = cur.setdefault("hooks", {}).setdefault("SessionStart", [])
+want = '"%s" update --bg' % cli
+if not any("update --bg" in h.get("command", "") and "gsdf" in h.get("command", "")
+           for g in hooks if isinstance(g, dict) for h in g.get("hooks", []) if isinstance(h, dict)):
+    hooks.append({"hooks": [{"type": "command", "command": want}]})
+    print("  update check: added to SessionStart")
+dst.write_text(json.dumps(cur, indent=2) + "\n")
+PY
+fi
+
 # --- adopt an existing .planning/ ---
 if [ "$GLOBAL" = 0 ] && [ -d "$TARGET/.planning" ]; then
   echo; echo "Existing .planning/ found — adopting:"; (cd "$TARGET" && "$DEST/bin/gsdf" adopt)

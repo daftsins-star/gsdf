@@ -876,6 +876,32 @@ sed -i.bak 's/^Make sure.*$/Make sure the knob turns smoothly/' .planning/phases
 "$GSDF" lint 1 >/dev/null; is "the English word make does not" "$?" "0"
 cd "$ROOT"; rm -rf "$T"
 
+echo "== 12t. statusline: always the folder, never a failure =="
+SL(){ printf '%s' "$1" | GSDF_UPDATE_CACHE="$UC" "$GSDF" statusline; }
+UC="$WORK/uc.json"; rm -f "$UC"
+OUT=$(SL '{"model":{"display_name":"Claude Opus 5.5"},"workspace":{"current_dir":"'"$FIX/native-iterate"'"},"context_window":{"remaining_percentage":70}}')
+has "model, without the Claude prefix" "$OUT" "Opus 5.5"
+has "the folder name" "$OUT" "native-iterate"
+has "the phase and its state" "$OUT" "phase 01 iterate"
+has "the context meter" "$OUT" "36%"
+hasnt "no update arrow without a newer release" "$OUT" "gsdf:update"
+OUT=$(SL '{"workspace":{"current_dir":"'"$FIX/empty"'"}}'); has "a folder with no project still shows its name" "$OUT" "empty"
+hasnt "and no phase" "$OUT" "phase"
+OUT=$(SL 'not json'); is "garbage in still renders, exit 0" "$?" "0"
+has "with the current folder" "$OUT" "$(basename "$PWD")"
+echo '{"latest":"99.0.0","checked":"2000-01-01T00:00:00"}' > "$UC"
+has "a newer release shows the arrow" "$(SL '{}')" "⬆ /gsdf:update"
+echo '{"latest":"0.1.0","checked":"2000-01-01T00:00:00"}' > "$UC"
+hasnt "an older one does not" "$(SL '{}')" "gsdf:update"
+echo '{"latest":"99.0.0","checked":"'"$(date +%Y-%m-%dT%H:%M:%S)"'"}' > "$UC"
+S=$(python3 -c "
+import subprocess,time,os
+t=time.time(); subprocess.run(['$GSDF','update','--bg'],env=dict(os.environ,GSDF_UPDATE_CACHE='$UC')); print(int((time.time()-t)*1000))")
+lt_ms(){ [ "$1" -lt "$2" ] && ok "$3 ($1 ms)" || bad "$3" "< $2 ms" "$1 ms"; }
+lt_ms "$S" 300 "update --bg returns at once"
+is "and a fresh check is not repeated" "$(cat "$UC")" '{"latest":"99.0.0","checked":"'"$(python3 -c "import json;print(json.load(open('$UC'))['checked'])")"'"}'
+rm -f "$UC"
+
 echo "== 13. speed (spec 10: < 100 ms per call) =="
 cd "$FIX/original-midphase"
 S=$(python3 -c "

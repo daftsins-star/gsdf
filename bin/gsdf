@@ -1218,6 +1218,80 @@ def cmd_update(check=False, force=False, track_main=False):
     print("\nupdated to gsdf %s. Restart Claude Code to pick up the new commands." % rv)
     return 0
 
+
+# ---------- status line + background update check ----------
+# Claude Code's status line runs a command on every render and prints its first line. It
+# must be fast and must never fail loudly: a traceback there is a broken prompt, so every
+# step degrades to "leave that segment out".
+UPDATE_CACHE = Path(os.environ.get("GSDF_UPDATE_CACHE", Path.home() / ".cache" / "gsdf" / "update.json"))
+def update_cache():
+    try: return json.loads(UPDATE_CACHE.read_text(encoding="utf-8"))
+    except Exception: return {}
+def cmd_update_bg(probe=False):
+    """SessionStart: start a detached probe and return at once, so a slow network never delays
+    a session. The probe writes what GitHub's newest release is; the status line compares it
+    against the running VERSION at render time, so the arrow disappears the moment an update
+    lands instead of waiting for the next check."""
+    if not probe:
+        c = update_cache()
+        try: fresh = (datetime.now() - datetime.fromisoformat(c.get("checked", ""))).total_seconds() < 3600
+        except ValueError: fresh = False
+        if fresh: return 0
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "update", "--probe"],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+        return 0
+    tags = remote_tags()
+    rv = remote_version(tags[0][1] if tags else BRANCH)
+    if rv and rv != "?":
+        UPDATE_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        UPDATE_CACHE.write_text(json.dumps({"latest": rv, "checked": datetime.now().isoformat(timespec="seconds")}) + "\n",
+                                encoding="utf-8")
+    return 0
+def ctx_bar(remaining):
+    """The same meter GSD draws: used share of the context Claude Code lets you fill before it
+    auto-compacts (a ~16.5% reserve, or CLAUDE_CODE_AUTO_COMPACT_WINDOW when set)."""
+    try: rem = float(remaining)
+    except (TypeError, ValueError): return ""
+    buf = 16.5
+    try:
+        acw, tot = int(os.environ.get("CLAUDE_CODE_AUTO_COMPACT_WINDOW") or 0), 1_000_000
+        if acw > 0: buf = min(100.0, max(0.0, (1 - acw / tot) * 100))
+    except ValueError: pass
+    used = max(0, min(100, round(100 - max(0.0, (rem - buf) / (100 - buf) * 100))))
+    bar = "█" * (used // 10) + "░" * (10 - used // 10)
+    col = "32" if used < 50 else "33" if used < 65 else "38;5;208" if used < 80 else "5;31"
+    return " \x1b[%sm%s%s %d%%\x1b[0m" % (col, "💀 " if used >= 80 else "", bar, used)
+def cmd_statusline():
+    try: data = json.loads(sys.stdin.read() or "{}")
+    except Exception: data = {}
+    seg = []
+    latest = update_cache().get("latest")
+    if latest and vtuple(latest) > vtuple(VERSION): seg.append("\x1b[33m⬆ /gsdf:update\x1b[0m")
+    model = re.sub(r"^Claude\s+", "", ((data.get("model") or {}).get("display_name") or "Claude"))
+    seg.append("\x1b[2m%s\x1b[0m" % model)
+    d = Path((data.get("workspace") or {}).get("current_dir") or os.getcwd())
+    try:
+        os.chdir(d); pl = planning()
+        ph = phases(pl) if pl else []
+        cur = current(pl, ph) if ph else None
+        if cur:
+            seg.append("\x1b[2mphase %s %s%s\x1b[0m" % (cur["prefix"], cur["status"],
+                       " · auto" if setting(pl, "auto") else ""))
+    except Exception: pass
+    rem = (data.get("context_window") or {}).get("remaining_percentage")
+    # GSD's context-monitor hook warns when context runs low, reading a bridge file that GSD's
+    # status line wrote. Replacing that status line must not silently switch the warning off.
+    sid = str(data.get("session_id") or "")
+    if rem is not None and sid and not re.search(r"[/\\]|\.\.", sid):
+        try:
+            Path(tempfile.gettempdir(), "claude-ctx-%s.json" % sid).write_text(json.dumps(
+                {"session_id": sid, "remaining_percentage": rem, "used_pct": round(100 - float(rem)),
+                 "timestamp": int(datetime.now().timestamp())}))
+        except Exception: pass
+    seg.append("\x1b[2m%s\x1b[0m%s" % (d.name, ctx_bar(rem)))
+    print(" │ ".join(seg))
+
 # ---------- bug log ----------
 # Bugs in GSDF surface while using GSDF on real work, in some other project, mid-task --
 # the worst possible moment to stop and file a report. So recording has to cost nearly
@@ -1410,7 +1484,9 @@ USAGE = {
     "params":    "gsdf params [N] [--write]     parameter ABI guard; reads only, --write (re)locks params.lock",
     "cfg":       "gsdf cfg [<setting> [<value>]]  how GSDF behaves here; with a value, writes config.json",
     "rebuild":   "gsdf rebuild                  rebuild and install the product; quiet unless it fails",
-    "update":    "gsdf update [--check] [--force] [--main]   compare with GitHub, reinstall when behind",
+    "update":    "gsdf update [--check] [--force] [--main] [--bg]   compare with GitHub, reinstall when behind;\n"
+                 "                              --bg checks in the background for the status line",
+    "statusline": "gsdf statusline               Claude Code status line: update arrow, model, phase, context",
     "bug":       "gsdf bug \"<one line>\"        record a GSDF bug you just hit, then carry on",
     "bugs":      "gsdf bugs [--count] [--fixed <id> [note]] [--clear]   open bug reports; --fixed retires one",
     "trace":     "gsdf trace on|off|show        record a real run's call sequence and check it",
@@ -1446,6 +1522,13 @@ def main(a):
             return cmd_bugs_fixed(a[i + 1], " ".join(a[i + 2:]).strip())
         if "--count" in a: return cmd_bugs_count()
         return cmd_bugs("--clear" in a)
+    if c == "statusline":
+        try: return cmd_statusline()
+        except Exception: return print("gsdf")      # a render must never fail loudly
+    if c == "update" and len(a) == 2 and a[1] in ("--bg", "--probe"):
+        try: sys.exit(cmd_update_bg(a[1] == "--probe"))
+        except SystemExit: raise
+        except Exception: sys.exit(0)               # a background check never reports a crash
     if c == "update":
         # update returns before the generic flag check below, so it validates its own --
         # otherwise `gsdf update --forse` would quietly not force.
@@ -1529,7 +1612,8 @@ def main(a):
 if __name__ == "__main__":
     try:
         main(sys.argv[1:])
-        if sys.argv[1:2] != ["trace"]: trace_write(sys.argv[1:], 0)
+        if sys.argv[1:2] not in (["trace"], ["statusline"]) and sys.argv[1:3] not in (["update", "--bg"], ["update", "--probe"]):
+            trace_write(sys.argv[1:], 0)
     except BrokenPipeError: pass
     except KeyboardInterrupt: sys.exit(130)
     except SystemExit as e:

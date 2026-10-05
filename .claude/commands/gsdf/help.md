@@ -1,5 +1,5 @@
 ---
-description: The GSDF loop and its 13 commands
+description: The GSDF loop and its 14 commands
 effort: low
 allowed-tools: [Bash]
 ---
@@ -27,6 +27,8 @@ GSDF — Get Shit Done Fast
                         at the mockups or on a failure it can't fix.
   /gsdf:cfg [k v]       How GSDF behaves here: auto, plain language, phase   0 spawns.
                         count, UI first, UI style, rebuild command.
+  /gsdf:update          Install the newest GSDF release. The status line   0 spawns.
+                        shows ⬆ /gsdf:update when there is one.
   /gsdf:help            This.
 
   The CLI, read-only unless it says otherwise:

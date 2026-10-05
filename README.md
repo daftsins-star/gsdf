@@ -45,6 +45,12 @@ reports where the project stands, and writes nothing under `phases/`.
 
 ### Staying current
 
+A global install sets Claude Code's status line to GSDF's — it shows the model, the phase and
+its state, the folder you are in, and how full the context is — and adds a session-start check
+that puts `⬆ /gsdf:update` at the front when a newer release exists. `/gsdf:update` installs it.
+A status line you set up yourself is left alone; GSD's is replaced (the old one is kept in
+`~/.claude/gsdf-statusline.previous.json`).
+
 ```bash
 gsdf update --check   # compare this install against GitHub, write nothing
 gsdf update           # reinstall from the newest release if it is ahead
@@ -66,7 +72,7 @@ because installing GitHub's copy there would quietly discard the build you are d
 `./install.sh --global` to install that tree, or `gsdf update --force` to take GitHub's anyway.
 `GSDF_REPO` and `GSDF_BRANCH` point it at a fork.
 
-## The thirteen commands
+## The fourteen commands
 
 | | | Spawns |
 |---|---|---|
@@ -82,6 +88,7 @@ because installing GitHub's copy there would quietly discard the build you are d
 | `/gsdf:resume [N]` | Restore a paused session from its handoff | 0 |
 | `/gsdf:auto ["<request>"]` | Build on its own: the rest of the roadmap, a big change, or new phases | 1 per phase + 1 per plan |
 | `/gsdf:cfg [<setting> <value>]` | See or change how GSDF behaves in this project | 0 |
+| `/gsdf:update` | Install the newest release — the status line shows `⬆ /gsdf:update` when there is one | 0 |
 | `/gsdf:help` | The loop and the commands | 0 |
 
 `discuss` is optional. `plan` is not — `auto` just runs it for you.
@@ -209,7 +216,7 @@ and a checklist Claude runs against its own screenshot before showing you anythi
 
 ## The CLI
 
-`gsdf` is ~1550 lines of stdlib Python that answers *where am I* deterministically, so agents
+`gsdf` is ~1620 lines of stdlib Python that answers *where am I* deterministically, so agents
 don't burn context reading five markdown files to find out. (Lines, not words, is the honest
 unit here: `bin/gsdf` is never loaded into a context window, so what the number claims is how
 much code you have to trust — not what it costs you to run.)
@@ -240,7 +247,9 @@ gsdf lint 2              # exits 1 if a plan is not executable, naming the plan 
                          #   waves() would emit as one parallel wave, the opposite of
                          #   what those plans declared — and a Try-it that tells the
                          #   user to build something
-gsdf update              # check GitHub, reinstall if it is ahead (--check to look only)
+gsdf update              # check GitHub, reinstall if it is ahead (--check to look only;
+                         #   --bg checks in the background, once an hour at most)
+gsdf statusline          # the status line: ⬆ /gsdf:update │ model │ phase 02 iterate · auto │ folder ███░░ 34%
 gsdf bug "<one line>"    # record a GSDF bug you just hit, from any project
 gsdf bugs                # open reports, each with a stable #id
 gsdf bugs --fixed <id> "<commit>"   # retire one, stamped with what fixed it
@@ -317,17 +326,17 @@ figure taken from the same real project (a JUCE gain plugin scaffolded by `/gsdf
 
 | | get-shit-done | gsd-core | GSDF |
 |---|---|---|---|
-| Commands | 29 | 72 | **13** |
+| Commands | 29 | 72 | **14** |
 | Agents | 12 | 64 | **2** |
-| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **10,095** |
-| Description text loaded every turn | 1,880 chars | 5,349 chars | **602 chars** |
+| Words of command + agent markdown<sup>†</sup> | 59,114 | 157,383 | **10,327** |
+| Description text loaded every turn | 1,880 chars | 5,349 chars | **635 chars** |
 | Context handed to the planner | ~3,572 tokens<sup>‡</sup> | ~3,572 tokens<sup>‡</sup> | **631 tokens** |
 | Subagents per 2-plan phase | 6–8 | 6–10 | **3** |
 | Subagents during review/iteration | 1+ per fix | 1+ per fix | **0** |
 
 <sup>†</sup> Words, not lines, because the cost being compared is context and a line is a bad
 proxy for it. GSDF's markdown runs 7.2 words per line against get-shit-done's 3.6, so counting
-lines would report a 15× advantage where the honest figure is **5.9×**. Words are exact; at
+lines would report a 15× advantage where the honest figure is **5.7×**. Words are exact; at
 roughly 1.3 tokens per word that is ~13k tokens against ~77k and ~205k. All three counted the
 same way, `commands/**/*.md` + `agents/**/*.md`, on the same day.
 
@@ -368,7 +377,7 @@ Measured on the test fixtures:
 |---|---|
 | `gsdf context N` | **37 ms**, ~**631 tokens** (budget: 100 ms, 2,500 tokens) |
 | Subagents per 2-plan phase | **3** — one planner, two executors. Iterate and approve add none. |
-| Command descriptions, all 13 | **602 characters** total (loaded every turn; budget 650) |
+| Command descriptions, all 14 | **635 characters** total (loaded every turn; budget 700) |
 | `gsdf-executor.md` / `gsdf-planner.md` | **895** / **1145** words (read at every spawn) |
 
 **The end-to-end wall-clock comparison has not been run.** It needs a real interactive session —
@@ -423,8 +432,8 @@ could not parse, and parallel `gsdf` writes silently losing updates.
 ## Tests
 
 ```bash
-bash tests/test_cli.sh          # 296 checks — CLI behaviour against 7 fixture projects
-bash tests/test_conformance.sh  # 167 checks — spawn, size and token budgets; the git protocol
+bash tests/test_cli.sh          # 310 checks — CLI behaviour against 7 fixture projects
+bash tests/test_conformance.sh  # 175 checks — spawn, size and token budgets; the git protocol
 ```
 
 `tests/fixtures/` holds two `.planning/` trees built by hand from the real templates of both

@@ -100,7 +100,7 @@ Copy **wording**, never machinery. Both are MIT — keep `NOTICE.md` crediting b
 ```
 gsdf/
 ├── GSDF-SPEC.md              # this file
-├── README.md                 # install, the 13 commands, the loop diagram, benchmark
+├── README.md                 # install, the 14 commands, the loop diagram, benchmark
 ├── NOTICE.md                 # MIT attribution: get-shit-done (TÂCHES) and gsd-core (open-gsd)
 ├── LICENSE                   # MIT
 ├── install.sh                # copies .claude/ tree into a target project (§9)
@@ -139,12 +139,13 @@ gsdf/
     └── fixtures/             # fake .planning/ trees covering every gsdf next state
 ```
 
-**13 commands, 2 agents, 2 skills (templates, style guide), 1 CLI.** Do not add more. The two
+**14 commands, 2 agents, 2 skills (templates, style guide), 1 CLI.** Do not add more. The two
 session-boundary commands (`pause`, `resume`) exist because a session ends mid-phase and
 `gsdf next` recovers the position but never the reasoning. `auto` exists because the user asked
 to stop being the scheduler between phases — it adds no agent and no spawn the manual loop does
 not already make. `cfg` exists because those choices (auto, plain language, phase count, UI first)
-are per-project and must be changeable without editing JSON. Anything else still does not get one.
+are per-project and must be changeable without editing JSON. `update` exists so the status line's
+update arrow has one obvious thing to type. Anything else still does not get one.
 
 Templates produce files using the **GSD-native names** (`NN-MM-PLAN.md`, `NN-CONTEXT.md`, …, §4a).
 The template filenames above are just the template names.
@@ -720,7 +721,7 @@ Command files: YAML frontmatter with `description:` (≤ 70 chars — it's loade
   session. Zero spawns, zero code commits.
 
 ### `/gsdf:help`
-- `effort: low`. One screen: the loop diagram, 13 commands one line each, "say approved".
+- `effort: low`. One screen: the loop diagram, 14 commands one line each, "say approved".
 
 ### Agent `gsdf-planner.md`
 Frontmatter: `name: gsdf-planner`, one-line `description`, `tools: Read, Grep, Glob, Bash, Write, WebSearch, WebFetch`. **No `model:`.** < 120 lines.
@@ -871,6 +872,6 @@ Then the fresh-project loop:
 
 ## 13. Report when done
 
-File tree; line counts of both agents and all thirteen commands; the description-character total;
+File tree; line counts of both agents and all fourteen commands; the description-character total;
 `gsdf context 1` token estimate; benchmark numbers; every deviation from this spec with one
 sentence of reason. Then stop.
