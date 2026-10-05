@@ -52,6 +52,7 @@ Rejected: yellows (merge with bone), acid green, pure red (reads as error), whit
 - Scale (px): nano 8 · micro 9 · xs 10 · sm 11 · base 13 · lg 18 · xl 26 · 2xl 38. No other sizes. The canvas base is xs/10px, uppercase, `--track-body` 0.04em, line-height 1.
 - Labels/buttons/tabs: micro 9px, `--track-caps` 0.16em, `--ink-dim` (labels) or `--ink-text` (buttons). Values: xs 10px `--ink-text`, tabular. Hints: nano 8px `--ink-dim`.
 - One `--text-xl` number per screen at most (`BigReadout`). Units go after values in `.lbl` style, never in the display face.
+- **Case that carries meaning stays as written** — chord names (Cm7 ≠ CM7), roman numerals (i ≠ I), units like dB/Hz/ms. Silkscreen has no lowercase, so set these in Space Mono without `text-transform`. Neither face has ♭ ♯ ♮ (they fall back to a system font): render music text through `icons/MusicText.tsx`, which draws them as pixel glyphs in the icon style.
 
 ## 5. Layout, window, density, tabs
 
