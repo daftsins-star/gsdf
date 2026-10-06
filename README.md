@@ -205,8 +205,10 @@ JUCE's `COPY_PLUGIN_AFTER_BUILD` installs it — `gsdf rebuild` warns when that 
 
 UI work in a project that names no style follows the `gsdf-style` skill, installed with GSDF:
 
-- **Plugins** — black ground, bone ink, one accent per plugin, pixel display type over a mono
-  body; small windows, lots of icons, tabs when there are many features. An optional
+- **Plugins** — Alive:Medium's refined black-and-bone instrument panel in Alive:Drums' colours
+  and masthead: bar sliders, pips, cell rows, a list, a Screen, a preset menu and a hover hint on
+  every control, one accent per plugin, pixel display type over a mono body; small windows, lots
+  of icons, tabs when there are many features. An optional
   **signature piece** — a picture or visualizer that reacts to the sound, posterized, pixelated
   and gently wobbling — is offered during discuss.
 - **Apps** — translucent glass panels over the desktop.
@@ -419,9 +421,9 @@ could not parse, and parallel `gsdf` writes silently losing updates.
   `~/.claude/commands/gsdf/` beats a fresh project copy. `install.sh` warns when it sees this.
 - **Permissions need a trusted workspace.** Claude Code ignores `permissions.allow` until you
   open the project interactively once and accept the trust dialog.
-- **`/gsdf:pause`, `/gsdf:resume`, `/gsdf:auto` and `/gsdf:cfg` have not been run live yet.**
-  They are covered by the conformance suite, and `gsdf cfg` / `gsdf rebuild` by the CLI tests,
-  but none of the four by the live runs above.
+- **`/gsdf:pause`, `/gsdf:resume`, `/gsdf:auto`, `/gsdf:cfg` and `/gsdf:update` have not been
+  run live yet.** They are covered by the conformance suite, and `gsdf cfg` / `gsdf rebuild` /
+  `gsdf statusline` by the CLI tests, but none of the five by the live runs above.
 - **The plan re-spawn has never fired.** `gsdf lint` and `gsdf conflicts` are proven to *detect*
   every failure they check for, but no planner output has actually failed one, so the branch that
   re-spawns the planner with the failure text is unexercised.
